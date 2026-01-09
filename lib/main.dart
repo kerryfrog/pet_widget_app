@@ -68,10 +68,10 @@ class PetSelectScreen extends StatefulWidget {
 
 class _PetSelectScreenState extends State<PetSelectScreen> {
   final List<Map<String, String>> petList = [
-    {'id': 'dog_01', 'name': '강아지', 'emoji': '🐶'},
-    {'id': 'cat_01', 'name': '고양이', 'emoji': '🐱'},
-    {'id': 'frog', 'name': '개구리', 'emoji': '🐸'},
-    {'id': 'hamster_01', 'name': '햄스터', 'emoji': '🐹'},
+    {'id': 'dog_01', 'name': '강아지', 'type': 'emoji', 'value': '🐶'},
+    {'id': 'cat_01', 'name': '고양이', 'type': 'emoji', 'value': '🐱'},
+    {'id': 'frog', 'name': '개구리', 'type': 'image', 'value': 'frog'},
+    {'id': 'hamster_01', 'name': '햄스터', 'type': 'emoji', 'value': '🐹'},
   ];
 
   String? selectedPetId;
@@ -137,7 +137,7 @@ class _PetSelectScreenState extends State<PetSelectScreen> {
 
         if (receivedPet != null) {
           setState(() {
-            selectedPetId = receivedPet;
+            selectedPetId = _getPetIdFromValue(receivedPet);
           });
           await HomeWidget.saveWidgetData<String>('pet_emoji', receivedPet);
           await HomeWidget.updateWidget(
@@ -149,26 +149,31 @@ class _PetSelectScreenState extends State<PetSelectScreen> {
     });
   }
 
+  String? _getPetIdFromValue(String value) {
+    try {
+      return petList.firstWhere((p) => p['value'] == value)['id'];
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> sendPet() async {
     if (selectedPetId == null || _friendIdController.text.isEmpty) return;
 
-    // 1. 선택된 ID에 해당하는 이모지 찾기
     final selectedPet = petList.firstWhere((p) => p['id'] == selectedPetId);
-    final emoji = selectedPet['emoji']!;
+    final value = selectedPet['value']!;
 
     try {
-      // 2. 친구의 Firebase 문서 업데이트 (이게 핵심!)
       await FirebaseFirestore.instance
           .collection('users')
           .doc(_friendIdController.text)
           .set({
-        'current_pet': emoji, // 이모지를 보냅니다.
+        'current_pet': value,
         'last_update': FieldValue.serverTimestamp(),
         'sender': _myIdController.text,
       }, SetOptions(merge: true));
 
-      // 3. (선택사항) 내 위젯도 내가 보낸 걸로 즉시 업데이트
-      await HomeWidget.saveWidgetData<String>('pet_emoji', emoji);
+      await HomeWidget.saveWidgetData<String>('pet_emoji', value);
       await HomeWidget.updateWidget(
         name: 'PetWidgetProvider',
         androidName: 'PetWidgetProvider',
@@ -239,7 +244,9 @@ class _PetSelectScreenState extends State<PetSelectScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(pet['emoji']!, style: const TextStyle(fontSize: 50)),
+                          pet['type'] == 'emoji'
+                              ? Text(pet['value']!, style: const TextStyle(fontSize: 50))
+                              : Image.asset('assets/images/${pet['value']}.png', width: 80, height: 80),
                           Text(pet['name']!),
                         ],
                       ),

@@ -11,11 +11,19 @@ class PetWidgetProvider : HomeWidgetProvider() {
         for (appWidgetId in appWidgetIds) {
             val views = RemoteViews(context.packageName, R.layout.widget_layout).apply {
                 
-                // 1. Flutter에서 보낸 'pet_emoji' 글자를 가져옵니다. (없으면 기본값 🐣)
-                val petEmoji = widgetData.getString("pet_emoji", "🐣")
+                val petValue = widgetData.getString("pet_emoji", "🐣")
                 
-                // 2. 위젯의 TextView(widget_emoji_text)에 이 글자를 넣습니다.
-                setTextViewText(R.id.widget_emoji_text, petEmoji)
+                if (petValue == "frog") {
+                    // 이미지를 보여주고 텍스트를 숨깁니다.
+                    setViewVisibility(R.id.widget_emoji_text, android.view.View.GONE)
+                    setViewVisibility(R.id.widget_pet_image, android.view.View.VISIBLE)
+                    setImageViewResource(R.id.widget_pet_image, R.drawable.frog)
+                } else {
+                    // 텍스트를 보여주고 이미지를 숨깁니다.
+                    setViewVisibility(R.id.widget_emoji_text, android.view.View.VISIBLE)
+                    setViewVisibility(R.id.widget_pet_image, android.view.View.GONE)
+                    setTextViewText(R.id.widget_emoji_text, petValue)
+                }
             }
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
