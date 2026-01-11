@@ -1,7 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
+import '../auth_service.dart';
+import '../constants.dart';
+import 'login_screen.dart';
 
 class MyPageScreen extends StatefulWidget {
   final String? currentId;
@@ -18,15 +22,15 @@ class MyPageScreen extends StatefulWidget {
 }
 
 class _MyPageScreenState extends State<MyPageScreen> {
-  late TextEditingController _idController;
   final TextEditingController _nicknameController = TextEditingController();
   String? _oldNickname;
+  User? _currentUser;
 
   @override
   void initState() {
     super.initState();
-    _idController = TextEditingController(text: widget.currentId);
     _loadNickname();
+    _currentUser = AuthService().currentUser;
   }
 
   Future<void> _loadNickname() async {
@@ -39,27 +43,18 @@ class _MyPageScreenState extends State<MyPageScreen> {
   }
 
   @override
-  void didUpdateWidget(covariant MyPageScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.currentId != oldWidget.currentId) {
-      _idController.text = widget.currentId ?? '';
-    }
-  }
-
-  @override
   void dispose() {
-    _idController.dispose();
     _nicknameController.dispose();
     super.dispose();
   }
 
   Future<void> _saveInfo() async {
-    final newId = _idController.text.trim();
+    final myId = widget.currentId;
     final newNickname = _nicknameController.text.trim();
 
-    if (newId.isEmpty) {
+    if (myId == null || myId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ID를 입력해주세요.')),
+        const SnackBar(content: Text('사용자 ID 정보가 없습니다.')),
       );
       return;
     }
@@ -73,7 +68,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
     try {
       await FirebaseFirestore.instance.runTransaction((transaction) async {
-        // 1. 닉네임 중복 체크 (닉네임이 변경되었거나, 기존 닉네임이 등록 안 된 경우 대비)
+        // 1. 닉네임 중복 체크
         final nicknameRef =
             FirebaseFirestore.instance.collection('nicknames').doc(newNickname);
         final nicknameDoc = await transaction.get(nicknameRef);
@@ -92,42 +87,31 @@ class _MyPageScreenState extends State<MyPageScreen> {
           }
 
           // 새 닉네임 등록
-          transaction.set(nicknameRef, {'userId': newId});
+          transaction.set(nicknameRef, {'userId': myId});
         } else {
-          // 닉네임은 그대로지만 'nicknames' 컬렉션에 없을 경우 (최초 마이그레이션 등)
+          // 닉네임은 그대로지만 'nicknames' 컬렉션에 없을 경우
           if (!nicknameDoc.exists) {
-            transaction.set(nicknameRef, {'userId': newId});
+            transaction.set(nicknameRef, {'userId': myId});
           }
         }
 
         // 2. User 정보 업데이트
-        final userRef = FirebaseFirestore.instance.collection('users').doc(newId);
+        final userRef = FirebaseFirestore.instance.collection('users').doc(myId);
         transaction.set(
             userRef, {'nickname': newNickname}, SetOptions(merge: true));
       });
 
-      // 3. 로컬 저장 (트랜잭션 성공 시에만 수행)
+      // 3. 로컬 저장
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('my_id', newId);
       await prefs.setString('my_nickname', newNickname);
 
       setState(() {
         _oldNickname = newNickname;
       });
 
-      // 백그라운드 작업 재등록
-      Workmanager().registerPeriodicTask(
-        "pet_check_task",
-        "checkFirebaseForPets",
-        frequency: const Duration(minutes: 15),
-        constraints: Constraints(networkType: NetworkType.connected),
-      );
-
-      widget.onIdChanged(newId);
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('정보가 저장되었습니다.')),
+          const SnackBar(content: Text('닉네임이 저장되었습니다.')),
         );
         FocusScope.of(context).unfocus();
       }
@@ -147,10 +131,49 @@ class _MyPageScreenState extends State<MyPageScreen> {
     }
   }
 
+  Future<void> _logout() async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('로그아웃'),
+        content: const Text('정말 로그아웃 하시겠습니까?\n로그아웃 시 내 정보가 초기화됩니다.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('로그아웃')),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await AuthService().signOut();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('my_id');
+      await prefs.remove('my_nickname');
+      
+      Workmanager().cancelByTag("pet_check_task");
+
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false,
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('마이페이지')),
+      appBar: AppBar(
+        title: const Text('마이페이지'),
+        actions: [
+          IconButton(
+            onPressed: _logout,
+            icon: const Icon(Icons.logout),
+            tooltip: '로그아웃',
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: SingleChildScrollView(
@@ -158,7 +181,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                '내 정보 설정',
+                '내 정보',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 20),
@@ -169,16 +192,14 @@ class _MyPageScreenState extends State<MyPageScreen> {
                     children: [
                       const Icon(Icons.person_pin, size: 60, color: Colors.pink),
                       const SizedBox(height: 10),
-                      TextField(
-                        controller: _idController,
-                        decoration: const InputDecoration(
-                          labelText: '내 ID',
-                          helperText: '이 ID로 친구들이 펫을 보내줄 수 있어요.',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.tag),
-                        ),
+                      // 로그인 정보 표시
+                      ListTile(
+                        leading: const Icon(Icons.email),
+                        title: const Text('로그인 계정'),
+                        subtitle: Text(_currentUser?.email ?? '게스트 로그인'),
                       ),
-                      const SizedBox(height: 16),
+                      const Divider(),
+                      const SizedBox(height: 8),
                       TextField(
                         controller: _nicknameController,
                         decoration: const InputDecoration(
@@ -194,10 +215,29 @@ class _MyPageScreenState extends State<MyPageScreen> {
                         style: ElevatedButton.styleFrom(
                           minimumSize: const Size(double.infinity, 50),
                         ),
-                        child: const Text('저장하기'),
+                        child: const Text('닉네임 저장하기'),
                       ),
                     ],
                   ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Center(
+                child: Column(
+                  children: [
+                    TextButton.icon(
+                      onPressed: _logout,
+                      icon: const Icon(Icons.logout, color: Colors.grey),
+                      label: const Text('계정 로그아웃', style: TextStyle(color: Colors.grey)),
+                    ),
+                    TextButton(
+                      onPressed: _deleteAccount,
+                      child: Text(
+                        '회원 탈퇴',
+                        style: TextStyle(color: Colors.red[300], fontSize: 12),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -206,4 +246,84 @@ class _MyPageScreenState extends State<MyPageScreen> {
       ),
     );
   }
+
+  Future<void> _deleteAccount() async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('회원 탈퇴'),
+        content: const Text('정말 탈퇴하시겠습니까?\n모든 데이터가 삭제되며 복구할 수 없습니다.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('탈퇴', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final myId = widget.currentId;
+      final myNickname = _oldNickname; // 현재 저장된 닉네임 사용
+
+      if (myId != null) {
+        // Firestore 데이터 삭제
+        await FirebaseFirestore.instance.runTransaction((transaction) async {
+          // 닉네임 삭제
+          if (myNickname != null && myNickname.isNotEmpty) {
+            transaction.delete(
+                FirebaseFirestore.instance.collection('nicknames').doc(myNickname));
+          }
+          // 유저 데이터 삭제
+          transaction.delete(
+              FirebaseFirestore.instance.collection('users').doc(myId));
+        });
+      }
+
+      // Firebase Auth 삭제
+      await AuthService().currentUser?.delete();
+      await AuthService().signOut(); // 확실하게 로그아웃 처리
+
+      // 로컬 데이터 삭제
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+      
+      Workmanager().cancelByTag("pet_check_task");
+      widget.onIdChanged('');
+
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false,
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('회원 탈퇴가 완료되었습니다.')),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('보안을 위해 다시 로그인 후 시도해주세요.')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('탈퇴 실패: ${e.message}')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('오류 발생: $e')),
+        );
+      }
+    }
+  }
 }
+

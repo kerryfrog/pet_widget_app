@@ -3,21 +3,39 @@ package com.ssseregi.pet_widget_app
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.SharedPreferences
+import android.net.Uri
 import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetProvider
+import es.antonborri.home_widget.HomeWidgetLaunchIntent
 
 class PetWidgetProvider : HomeWidgetProvider() {
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray, widgetData: SharedPreferences) {
         for (appWidgetId in appWidgetIds) {
             val views = RemoteViews(context.packageName, R.layout.widget_layout).apply {
                 
+                val pendingIntent = HomeWidgetLaunchIntent.getActivity(
+                    context,
+                    MainActivity::class.java,
+                    Uri.parse("petwidget://yard")
+                )
+                setOnClickPendingIntent(R.id.widget_root, pendingIntent)
+
                 val petValue = widgetData.getString("pet_emoji", null)
+                val senderName = widgetData.getString("sender_name", "친구")
                 
-                val imageResId = when (petValue) {
+                setTextViewText(R.id.widget_sender_name, "${senderName}님이 보냄")
+
+                val cleanPetValue = petValue?.split("/")?.lastOrNull() ?: petValue
+
+                val imageResId = when (cleanPetValue) {
                     "cat" -> R.drawable.cat
-                    "hamster" -> R.drawable.hamster
-                    "rabbit" -> R.drawable.rabbit
+                    "dog_1" -> R.drawable.dog_1
                     "frog" -> R.drawable.frog
+                    "hamster" -> R.drawable.hamster
+                    "horse_1" -> R.drawable.horse_1
+                    "parrot_1" -> R.drawable.parrot_1
+                    "parrot_2" -> R.drawable.parrot_2
+                    "rabbit" -> R.drawable.rabbit
                     else -> 0
                 }
 
