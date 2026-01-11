@@ -270,17 +270,39 @@ class _MyPageScreenState extends State<MyPageScreen> {
       final myNickname = _oldNickname; // 현재 저장된 닉네임 사용
 
       if (myId != null) {
-        // Firestore 데이터 삭제
-        await FirebaseFirestore.instance.runTransaction((transaction) async {
-          // 닉네임 삭제
-          if (myNickname != null && myNickname.isNotEmpty) {
-            transaction.delete(
-                FirebaseFirestore.instance.collection('nicknames').doc(myNickname));
-          }
-          // 유저 데이터 삭제
-          transaction.delete(
-              FirebaseFirestore.instance.collection('users').doc(myId));
-        });
+        final firestore = FirebaseFirestore.instance;
+        final batch = firestore.batch();
+
+        // 1. 내 친구 목록 가져오기
+        final friendsSnapshot = await firestore
+            .collection('users')
+            .doc(myId)
+            .collection('friends')
+            .get();
+
+        // 2. 친구들의 친구 목록에서 나를 삭제
+        for (var doc in friendsSnapshot.docs) {
+          final friendId = doc.id;
+          final friendRef = firestore
+              .collection('users')
+              .doc(friendId)
+              .collection('friends')
+              .doc(myId);
+          batch.delete(friendRef);
+        }
+
+        // 3. 닉네임 삭제
+        if (myNickname != null && myNickname.isNotEmpty) {
+          final nicknameRef = firestore.collection('nicknames').doc(myNickname);
+          batch.delete(nicknameRef);
+        }
+
+        // 4. 유저 데이터 삭제
+        final userRef = firestore.collection('users').doc(myId);
+        batch.delete(userRef);
+
+        // 일괄 처리 실행
+        await batch.commit();
       }
 
       // Firebase Auth 삭제

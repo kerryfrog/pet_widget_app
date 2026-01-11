@@ -35,7 +35,7 @@ class _SendPetScreenState extends State<SendPetScreen> {
       builder: (context) {
         return Dialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Padding(
+          child: Container(
             padding: const EdgeInsets.all(24.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -60,20 +60,92 @@ class _SendPetScreenState extends State<SendPetScreen> {
                   ),
                 ),
                 const SizedBox(height: 30),
-                // 친구에게 보내기 버튼
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context); // 상세창 닫기
-                    _showFriendSelection(pet); // 친구 선택창 열기
+                
+                // 상태 확인 및 버튼 (FutureBuilder)
+                FutureBuilder<QuerySnapshot>(
+                  future: FirebaseFirestore.instance
+                      .collection('users')
+                      .where('sender', isEqualTo: widget.myId)
+                      .where('current_pet', isEqualTo: pet['value'])
+                      .limit(1)
+                      .get(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const CircularProgressIndicator();
+                    }
+
+                    if (snapshot.hasError) {
+                      return const Text('상태를 확인할 수 없습니다.', style: TextStyle(color: Colors.grey));
+                    }
+
+                    final docs = snapshot.data?.docs ?? [];
+                    
+                    if (docs.isNotEmpty) {
+                      // 이미 친구에게 가있는 경우
+                      final friendDoc = docs.first;
+                      final friendData = friendDoc.data() as Map<String, dynamic>;
+                      final friendNickname = friendData['nickname'] ?? '친구';
+
+                      return Column(
+                        children: [
+                          Text(
+                            "'$friendNickname' 님에게 가있습니다.",
+                            style: const TextStyle(fontSize: 16, color: Colors.blueGrey),
+                          ),
+                          const SizedBox(height: 15),
+                          ElevatedButton.icon(
+                            onPressed: () async {
+                              // 펫 회수 로직
+                              try {
+                                await FirebaseFirestore.instance
+                                    .collection('users')
+                                    .doc(friendDoc.id)
+                                    .update({
+                                  'current_pet': FieldValue.delete(),
+                                  'sender': FieldValue.delete(),
+                                  'sender_nickname': FieldValue.delete(),
+                                  'last_update': FieldValue.serverTimestamp(),
+                                });
+
+                                if (mounted) {
+                                  Navigator.pop(context); // 다이얼로그 닫기
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text("'${pet['name']}'이(가) 돌아왔습니다!")),
+                                  );
+                                }
+                              } catch (e) {
+                                debugPrint("회수 실패: $e");
+                              }
+                            },
+                            icon: const Icon(Icons.undo),
+                            label: const Text('돌아오기'),
+                            style: ElevatedButton.styleFrom(
+                              minimumSize: const Size(double.infinity, 50),
+                              backgroundColor: Colors.orange,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ],
+                      );
+                    } else {
+                      // 집에 있는 경우 (보내기 가능)
+                      return ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context); // 상세창 닫기
+                          _showFriendSelection(pet); // 친구 선택창 열기
+                        },
+                        icon: const Icon(Icons.send),
+                        label: const Text('친구에게 보내기'),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 50),
+                          backgroundColor: Colors.pink,
+                          foregroundColor: Colors.white,
+                        ),
+                      );
+                    }
                   },
-                  icon: const Icon(Icons.send),
-                  label: const Text('친구에게 보내기'),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 50),
-                    backgroundColor: Colors.pink,
-                    foregroundColor: Colors.white,
-                  ),
                 ),
+
                 const SizedBox(height: 10),
                 TextButton(
                   onPressed: () => Navigator.pop(context),
@@ -162,9 +234,62 @@ class _SendPetScreenState extends State<SendPetScreen> {
     try {
       final myId = widget.myId;
       final myNickname = _myNickname ?? myId;
+      final petValue = pet['value']!;
+      final petName = pet['name']!;
 
-      await FirebaseFirestore.instance.collection('users').doc(friendId).set({
-        'current_pet': pet['value'],
+      final friendRef = FirebaseFirestore.instance.collection('users').doc(friendId);
+      final friendDoc = await friendRef.get();
+      final friendData = friendDoc.data();
+
+      // 이미 같은 펫을 내가 보냈는지 확인
+      if (friendData != null &&
+          friendData['current_pet'] == petValue &&
+          friendData['sender'] == myId) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('알림'),
+              content: Text("'$friendNickname' 님에게 '$petName'이(가) 이미 가있습니다."),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('취소'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.pink,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () async {
+                    Navigator.pop(context); // 알림창 닫기
+                    
+                    // 펫 회수 (필드 삭제)
+                    await friendRef.update({
+                      'current_pet': FieldValue.delete(),
+                      'sender': FieldValue.delete(),
+                      'sender_nickname': FieldValue.delete(),
+                      'last_update': FieldValue.serverTimestamp(),
+                    });
+
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("'$petName'이(가) 돌아왔습니다!")),
+                      );
+                    }
+                  },
+                  child: const Text('돌아오기'),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
+      // 펫 전송
+      await friendRef.set({
+        'current_pet': petValue,
         'sender': myId,
         'sender_nickname': myNickname,
         'last_update': FieldValue.serverTimestamp(),
