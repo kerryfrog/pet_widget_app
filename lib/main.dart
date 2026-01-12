@@ -10,7 +10,7 @@ import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 
-// --- 백그라운드 작업 (우편 배달부) ---
+// --- 백그라운드 작업 (우편 배달부 + 자동 회수) ---
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
@@ -18,31 +18,77 @@ void callbackDispatcher() {
       WidgetsFlutterBinding.ensureInitialized();
       await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+      // 1. 자동 회수 체크: return_time이 지난 펫들을 회수
+      await _checkAndReturnPets();
+
+      // 2. 위젯 업데이트
       final prefs = await SharedPreferences.getInstance();
       final myId = prefs.getString('my_id');
 
-      if (myId == null) return Future.value(true);
+      if (myId != null) {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(myId).get();
+        final data = doc.data();
 
-      final doc = await FirebaseFirestore.instance.collection('users').doc(myId).get();
-      final data = doc.data();
+        if (data != null && data['current_pet'] != null) {
+          final String receivedPet = data['current_pet'];
+          final String senderName = data['sender_nickname'] ?? data['sender'] ?? '친구';
 
-      if (data != null && data['current_pet'] != null) {
-        final String receivedPet = data['current_pet'];
-        final String senderName = data['sender_nickname'] ?? data['sender'] ?? '친구';
-
-        await HomeWidget.saveWidgetData<String>('pet_emoji', receivedPet);
-        await HomeWidget.saveWidgetData<String>('sender_name', senderName);
-        
-        await HomeWidget.updateWidget(
-          name: 'PetWidgetProvider',
-          androidName: 'PetWidgetProvider',
-        );
+          await HomeWidget.saveWidgetData<String>('pet_emoji', receivedPet);
+          await HomeWidget.saveWidgetData<String>('sender_name', senderName);
+          
+          await HomeWidget.updateWidget(
+            name: 'PetWidgetProvider',
+            androidName: 'PetWidgetProvider',
+          );
+        } else {
+          // 펫이 없으면 위젯 데이터 초기화
+          await HomeWidget.saveWidgetData<String>('pet_emoji', null);
+          await HomeWidget.saveWidgetData<String>('sender_name', null);
+          await HomeWidget.updateWidget(
+            name: 'PetWidgetProvider',
+            androidName: 'PetWidgetProvider',
+          );
+        }
       }
     } catch (e) {
       debugPrint("백그라운드 작업 실패: $e");
     }
     return Future.value(true);
   });
+}
+
+// 자동 회수 함수
+Future<void> _checkAndReturnPets() async {
+  try {
+    final now = DateTime.now();
+    final nowTimestamp = Timestamp.fromDate(now);
+
+    // return_time이 현재 시간보다 이전인 모든 문서 찾기
+    final querySnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .where('return_time', isLessThan: nowTimestamp)
+        .get();
+
+    for (var doc in querySnapshot.docs) {
+      final data = doc.data();
+      final returnTime = data['return_time'] as Timestamp?;
+      final currentPet = data['current_pet'];
+      
+      // return_time이 지났고 펫이 있으면 회수
+      if (returnTime != null && currentPet != null && returnTime.toDate().isBefore(now)) {
+        await doc.reference.update({
+          'current_pet': FieldValue.delete(),
+          'sender': FieldValue.delete(),
+          'sender_nickname': FieldValue.delete(),
+          'return_time': FieldValue.delete(),
+          'last_update': FieldValue.serverTimestamp(),
+        });
+        debugPrint("펫 자동 회수 완료: ${doc.id}");
+      }
+    }
+  } catch (e) {
+    debugPrint("자동 회수 체크 실패: $e");
+  }
 }
 
 void main() async {

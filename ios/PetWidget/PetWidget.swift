@@ -11,12 +11,12 @@ import SwiftUI
 struct Provider: TimelineProvider {
     // 위젯의 기본 상태
     func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), emoji: "🐣")
+        SimpleEntry(date: Date(), emoji: "")
     }
 
     // 위젯 미리보기 상태
     func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> ()) {
-        let entry = SimpleEntry(date: Date(), emoji: "🐣")
+        let entry = SimpleEntry(date: Date(), emoji: "")
         completion(entry)
     }
 
@@ -24,7 +24,7 @@ struct Provider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
         // App Group을 통해 저장된 데이터를 읽어옵니다.
         let prefs = UserDefaults(suiteName: "group.com.ssseregi.petWidgetApp")
-        let emoji = prefs?.string(forKey: "pet_emoji") ?? "🐣"
+        let emoji = prefs?.string(forKey: "pet_emoji") ?? ""
 
         let entry = SimpleEntry(date: Date(), emoji: emoji)
         let timeline = Timeline(entries: [entry], policy: .atEnd)
@@ -48,7 +48,6 @@ struct PetWidgetEntryView : View {
     }
 }
 
-@main
 struct PetWidget: Widget {
     let kind: String = "PetWidget"
 

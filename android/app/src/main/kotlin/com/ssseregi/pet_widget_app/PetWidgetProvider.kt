@@ -21,9 +21,14 @@ class PetWidgetProvider : HomeWidgetProvider() {
                 setOnClickPendingIntent(R.id.widget_root, pendingIntent)
 
                 val petValue = widgetData.getString("pet_emoji", null)
-                val senderName = widgetData.getString("sender_name", "친구")
+                val senderName = widgetData.getString("sender_name", null)
                 
-                setTextViewText(R.id.widget_sender_name, "${senderName}님이 보냄")
+                if (petValue != null && senderName != null) {
+                    setViewVisibility(R.id.widget_sender_name, android.view.View.VISIBLE)
+                    setTextViewText(R.id.widget_sender_name, "${senderName}님이 보냄")
+                } else {
+                    setViewVisibility(R.id.widget_sender_name, android.view.View.GONE)
+                }
 
                 val cleanPetValue = petValue?.split("/")?.lastOrNull() ?: petValue
 
@@ -48,7 +53,7 @@ class PetWidgetProvider : HomeWidgetProvider() {
                     // 텍스트를 보여주고 이미지를 숨깁니다.
                     setViewVisibility(R.id.widget_emoji_text, android.view.View.VISIBLE)
                     setViewVisibility(R.id.widget_pet_image, android.view.View.GONE)
-                    setTextViewText(R.id.widget_emoji_text, petValue ?: "❓")
+                    setTextViewText(R.id.widget_emoji_text, petValue ?: "")
                 }
             }
             appWidgetManager.updateAppWidget(appWidgetId, views)

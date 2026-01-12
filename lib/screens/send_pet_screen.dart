@@ -3,6 +3,169 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 
+// 펫 닉네임 수정 다이얼로그 위젯
+class _NicknameEditDialog extends StatefulWidget {
+  final Map<String, String> pet;
+  final String currentNickname;
+  final VoidCallback onSaved;
+
+  const _NicknameEditDialog({
+    required this.pet,
+    required this.currentNickname,
+    required this.onSaved,
+  });
+
+  @override
+  State<_NicknameEditDialog> createState() => _NicknameEditDialogState();
+}
+
+class _NicknameEditDialogState extends State<_NicknameEditDialog> {
+  late TextEditingController _nicknameController;
+  String? _errorText;
+
+  @override
+  void initState() {
+    super.initState();
+    _nicknameController = TextEditingController(text: widget.currentNickname);
+  }
+
+  @override
+  void dispose() {
+    _nicknameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveNickname() async {
+    final nickname = _nicknameController.text.trim();
+    if (nickname.isEmpty) {
+      setState(() {
+        _errorText = '닉네임을 입력해주세요.';
+      });
+      return;
+    }
+    if (nickname.length < 1 || nickname.length > 10) {
+      setState(() {
+        _errorText = '닉네임은 1자 이상 10자 이하로 입력해주세요.';
+      });
+      return;
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final myId = prefs.getString('my_id');
+
+      if (myId == null || myId.isEmpty) {
+        setState(() {
+          _errorText = '사용자 정보를 찾을 수 없습니다.';
+        });
+        return;
+      }
+
+      // Firestore에서 사용자 문서 가져오기
+      final userRef = FirebaseFirestore.instance.collection('users').doc(myId);
+      final userDoc = await userRef.get();
+
+      if (!userDoc.exists) {
+        setState(() {
+          _errorText = '사용자 정보를 찾을 수 없습니다.';
+        });
+        return;
+      }
+
+      // 기존 pet_nicknames 가져오기
+      final userData = userDoc.data() as Map<String, dynamic>;
+      final Map<String, String> updatedPetNicknames =
+          (userData['pet_nicknames'] as Map<String, dynamic>?)?.map(
+                (key, value) => MapEntry(key, value.toString()),
+              ) ??
+              {};
+
+      // 닉네임 업데이트
+      updatedPetNicknames[widget.pet['value']!] = nickname;
+
+      // Firestore에 저장
+      await userRef.update({
+        'pet_nicknames': updatedPetNicknames,
+      });
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("'$nickname'으로 변경되었습니다!"),
+            backgroundColor: Colors.pink,
+          ),
+        );
+        widget.onSaved();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorText = e.toString().replaceAll('Exception: ', '');
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Text('펫 닉네임 수정'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 펫 이미지
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.pink[50],
+              shape: BoxShape.circle,
+            ),
+            child: Image.asset(
+              'assets/images/${widget.pet['value']}.png',
+              width: 80,
+              height: 80,
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _nicknameController,
+            decoration: InputDecoration(
+              labelText: '닉네임',
+              hintText: '1~10자 이내',
+              errorText: _errorText,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            maxLength: 10,
+            onChanged: (value) {
+              setState(() {
+                _errorText = null;
+              });
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('취소'),
+        ),
+        ElevatedButton(
+          onPressed: _saveNickname,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.pink,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('저장'),
+        ),
+      ],
+    );
+  }
+}
+
 class SendPetScreen extends StatefulWidget {
   final String? myId;
 
@@ -28,8 +191,25 @@ class _SendPetScreenState extends State<SendPetScreen> {
     });
   }
 
+  // --- 0. 펫 닉네임 수정 다이얼로그 ---
+  void _showNicknameEditDialog(Map<String, String> pet, Map<String, String> petNicknames) {
+    showDialog(
+      context: context,
+      builder: (context) => _NicknameEditDialog(
+        pet: pet,
+        currentNickname: petNicknames[pet['value']] ?? pet['name']!,
+        onSaved: () {
+          // 저장 후 화면 새로고침을 위해 아무것도 하지 않음 (StreamBuilder가 자동 업데이트)
+        },
+      ),
+    );
+  }
+
   // --- 1. 펫 상세 정보 (상태창) 보여주기 ---
-  void _showPetDetail(Map<String, String> pet) {
+  void _showPetDetail(Map<String, String> pet, Map<String, String> petNicknames) {
+    // 설정된 닉네임이 있으면 사용, 없으면 기본 이름 사용
+    final displayName = petNicknames[pet['value']] ?? pet['name']!;
+    
     showDialog(
       context: context,
       builder: (context) {
@@ -40,10 +220,26 @@ class _SendPetScreenState extends State<SendPetScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // 펫 이름
-                Text(
-                  pet['name']!,
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                // 펫 이름과 편집 버튼
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        displayName,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 20),
+                      onPressed: () {
+                        Navigator.pop(context); // 현재 다이얼로그 닫기
+                        _showNicknameEditDialog(pet, petNicknames);
+                      },
+                      tooltip: '닉네임 수정',
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 20),
                 // 펫 이미지 (크게)
@@ -85,6 +281,26 @@ class _SendPetScreenState extends State<SendPetScreen> {
                       final friendDoc = docs.first;
                       final friendData = friendDoc.data() as Map<String, dynamic>;
                       final friendNickname = friendData['nickname'] ?? '친구';
+                      final returnTime = friendData['return_time'] as Timestamp?;
+                      
+                      // 돌아오는 시간 계산
+                      String returnTimeText = '';
+                      if (returnTime != null) {
+                        final returnDateTime = returnTime.toDate();
+                        final now = DateTime.now();
+                        if (returnDateTime.isAfter(now)) {
+                          final difference = returnDateTime.difference(now);
+                          final hours = difference.inHours;
+                          final minutes = difference.inMinutes % 60;
+                          if (hours > 0) {
+                            returnTimeText = '약 ${hours}시간 ${minutes}분 후 돌아옵니다';
+                          } else {
+                            returnTimeText = '약 ${minutes}분 후 돌아옵니다';
+                          }
+                        } else {
+                          returnTimeText = '곧 돌아옵니다';
+                        }
+                      }
 
                       return Column(
                         children: [
@@ -92,6 +308,32 @@ class _SendPetScreenState extends State<SendPetScreen> {
                             "'$friendNickname' 님에게 가있습니다.",
                             style: const TextStyle(fontSize: 16, color: Colors.blueGrey),
                           ),
+                          if (returnTimeText.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.orange[50],
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.orange[200]!),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.access_time, size: 16, color: Colors.orange[700]),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    returnTimeText,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.orange[900],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 15),
                           ElevatedButton.icon(
                             onPressed: () async {
@@ -104,13 +346,14 @@ class _SendPetScreenState extends State<SendPetScreen> {
                                   'current_pet': FieldValue.delete(),
                                   'sender': FieldValue.delete(),
                                   'sender_nickname': FieldValue.delete(),
+                                  'return_time': FieldValue.delete(),
                                   'last_update': FieldValue.serverTimestamp(),
                                 });
 
                                 if (mounted) {
                                   Navigator.pop(context); // 다이얼로그 닫기
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text("'${pet['name']}'이(가) 돌아왔습니다!")),
+                                    SnackBar(content: Text("'$displayName'이(가) 돌아왔습니다!")),
                                   );
                                 }
                               } catch (e) {
@@ -129,18 +372,46 @@ class _SendPetScreenState extends State<SendPetScreen> {
                       );
                     } else {
                       // 집에 있는 경우 (보내기 가능)
-                      return ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context); // 상세창 닫기
-                          _showFriendSelection(pet); // 친구 선택창 열기
-                        },
-                        icon: const Icon(Icons.send),
-                        label: const Text('친구에게 보내기'),
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 50),
-                          backgroundColor: Colors.pink,
-                          foregroundColor: Colors.white,
-                        ),
+                      return Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.green[50],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.green[200]!),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.home, size: 16, color: Colors.green[700]),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '집에 있습니다',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.green[900],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 15),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.pop(context); // 상세창 닫기
+                              _showFriendSelection(pet, petNicknames); // 친구 선택창 열기
+                            },
+                            icon: const Icon(Icons.send),
+                            label: const Text('친구에게 보내기'),
+                            style: ElevatedButton.styleFrom(
+                              minimumSize: const Size(double.infinity, 50),
+                              backgroundColor: Colors.pink,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ],
                       );
                     }
                   },
@@ -160,7 +431,10 @@ class _SendPetScreenState extends State<SendPetScreen> {
   }
 
   // --- 2. 보낼 친구 선택하기 (친구 목록 불러오기) ---
-  void _showFriendSelection(Map<String, String> pet) {
+  void _showFriendSelection(Map<String, String> pet, Map<String, String> petNicknames) {
+    // 설정된 닉네임이 있으면 사용, 없으면 기본 이름 사용
+    final displayName = petNicknames[pet['value']] ?? pet['name']!;
+    
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -174,7 +448,7 @@ class _SendPetScreenState extends State<SendPetScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${pet['name']}을(를) 누구에게 보낼까요?',
+                '$displayName을(를) 누구에게 보낼까요?',
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 10),
@@ -213,7 +487,7 @@ class _SendPetScreenState extends State<SendPetScreen> {
                           trailing: const Icon(Icons.send, color: Colors.pink),
                           onTap: () {
                             Navigator.pop(context); // 친구 선택창 닫기
-                            _sendPetToFriend(friendId, friendNickname, pet);
+                            _sendPetToFriend(friendId, friendNickname, pet, petNicknames);
                           },
                         );
                       },
@@ -230,12 +504,13 @@ class _SendPetScreenState extends State<SendPetScreen> {
 
   // --- 3. 실제로 펫 전송하기 ---
   Future<void> _sendPetToFriend(
-      String friendId, String friendNickname, Map<String, String> pet) async {
+      String friendId, String friendNickname, Map<String, String> pet, Map<String, String> petNicknames) async {
     try {
       final myId = widget.myId;
       final myNickname = _myNickname ?? myId;
       final petValue = pet['value']!;
-      final petName = pet['name']!;
+      // 설정된 닉네임이 있으면 사용, 없으면 기본 이름 사용
+      final petName = petNicknames[petValue] ?? pet['name']!;
 
       final friendRef = FirebaseFirestore.instance.collection('users').doc(friendId);
       final friendDoc = await friendRef.get();
@@ -269,6 +544,7 @@ class _SendPetScreenState extends State<SendPetScreen> {
                       'current_pet': FieldValue.delete(),
                       'sender': FieldValue.delete(),
                       'sender_nickname': FieldValue.delete(),
+                      'return_time': FieldValue.delete(),
                       'last_update': FieldValue.serverTimestamp(),
                     });
 
@@ -287,11 +563,13 @@ class _SendPetScreenState extends State<SendPetScreen> {
         return;
       }
 
-      // 펫 전송
+      // 펫 전송 (1시간 후 자동 회수)
+      final returnTime = DateTime.now().add(const Duration(hours: 1));
       await friendRef.set({
         'current_pet': petValue,
         'sender': myId,
         'sender_nickname': myNickname,
+        'return_time': Timestamp.fromDate(returnTime),
         'last_update': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
@@ -356,6 +634,11 @@ class _SendPetScreenState extends State<SendPetScreen> {
                     );
                   }
 
+                  // 펫 닉네임 가져오기
+                  final petNicknames = (data?['pet_nicknames'] as Map<String, dynamic>?)?.map(
+                    (key, value) => MapEntry(key, value.toString())
+                  ) ?? <String, String>{};
+
                   return GridView.builder(
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
@@ -365,8 +648,10 @@ class _SendPetScreenState extends State<SendPetScreen> {
                     itemCount: myPetList.length,
                     itemBuilder: (context, index) {
                       final pet = myPetList[index];
+                      // 설정된 닉네임이 있으면 사용, 없으면 기본 이름 사용
+                      final displayName = petNicknames[pet['value']] ?? pet['name']!;
                       return GestureDetector(
-                        onTap: () => _showPetDetail(pet),
+                        onTap: () => _showPetDetail(pet, petNicknames),
                         child: Card(
                           color: Colors.white,
                           elevation: 2,
@@ -379,7 +664,7 @@ class _SendPetScreenState extends State<SendPetScreen> {
                               Image.asset('assets/images/${pet['value']}.png',
                                   width: 80, height: 80),
                               const SizedBox(height: 10),
-                              Text(pet['name']!,
+                              Text(displayName,
                                   style: const TextStyle(
                                       fontSize: 16, fontWeight: FontWeight.bold)),
                             ],

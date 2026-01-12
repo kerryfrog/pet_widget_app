@@ -1,6 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'home_screen.dart';
+import 'pet_nickname_setting_screen.dart';
 
 class PetUnboxingScreen extends StatefulWidget {
   final Map<String, String> assignedPet;
@@ -51,9 +51,11 @@ class _PetUnboxingScreenState extends State<PetUnboxingScreen>
     });
   }
 
-  void _goToHome() {
+  void _goToPetNicknameSetting() {
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
+      MaterialPageRoute(
+        builder: (context) => PetNicknameSettingScreen(assignedPet: widget.assignedPet),
+      ),
     );
   }
 
@@ -97,25 +99,10 @@ class _PetUnboxingScreenState extends State<PetUnboxingScreen>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        width: 150,
-                        height: 150,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.card_giftcard,
-                          size: 80,
-                          color: Colors.pink[300],
-                        ),
+                      Image.asset(
+                        'assets/images/present.png',
+                        width: 200,
+                        height: 200,
                       ),
                       const SizedBox(height: 20),
                       const Text(
@@ -190,7 +177,7 @@ class _PetUnboxingScreenState extends State<PetUnboxingScreen>
                     ),
                     const SizedBox(height: 40),
                     ElevatedButton(
-                      onPressed: _goToHome,
+                      onPressed: _goToPetNicknameSetting,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.pink,
                         foregroundColor: Colors.white,
@@ -200,7 +187,7 @@ class _PetUnboxingScreenState extends State<PetUnboxingScreen>
                         ),
                       ),
                       child: const Text(
-                        "시작하기",
+                        "닉네임 설정하기",
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                     ),
