@@ -179,7 +179,6 @@ class _SendMessageDialog extends StatefulWidget {
 
 class _SendMessageDialogState extends State<_SendMessageDialog> {
   late TextEditingController _messageController;
-  String? _errorText;
 
   @override
   void initState() {
@@ -195,12 +194,6 @@ class _SendMessageDialogState extends State<_SendMessageDialog> {
 
   void _sendMessage() {
     final message = _messageController.text.trim();
-    if (message.length != 2) {
-      setState(() {
-        _errorText = '대사는 두 글자로 입력해주세요.';
-      });
-      return;
-    }
     widget.onSend(message);
   }
 
@@ -211,7 +204,7 @@ class _SendMessageDialogState extends State<_SendMessageDialog> {
       content: TextField(
         controller: _messageController,
         decoration: const InputDecoration(
-          hintText: '두 글자 입력',
+          hintText: '2글자 이하 입력 (선택)',
         ),
         maxLength: 2,
       ),
@@ -572,9 +565,39 @@ class _SendPetScreenState extends State<SendPetScreen> {
                           title: Text(friendNickname),
                           subtitle: Text(friendId),
                           trailing: const Icon(Icons.send, color: Colors.pink),
-                          onTap: () {
-                            Navigator.pop(context); // 친구 선택창 닫기
-                            _showMessageDialog(friendId, friendNickname, pet, petNicknames);
+                          onTap: () async {
+                            // 친구의 마당(current_pets) 상태 확인
+                            try {
+                              final friendDoc = await FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(friendId)
+                                  .get();
+                              
+                              if (friendDoc.exists) {
+                                final friendData = friendDoc.data() as Map<String, dynamic>;
+                                final currentPets = friendData['current_pets'] as List<dynamic>? ?? [];
+                                
+                                if (currentPets.length >= 3) {
+                                  if (context.mounted) {
+                                    Navigator.pop(context); // 친구 선택창 닫기
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text("'$friendNickname' 님의 마당이 꽉 찼어요! (3마리)"),
+                                        backgroundColor: Colors.redAccent,
+                                      ),
+                                    );
+                                  }
+                                  return;
+                                }
+                              }
+                            } catch (e) {
+                              debugPrint('친구 상태 확인 실패: $e');
+                            }
+
+                            if (context.mounted) {
+                              Navigator.pop(context); // 친구 선택창 닫기
+                              _showMessageDialog(friendId, friendNickname, pet, petNicknames);
+                            }
                           },
                         );
                       },

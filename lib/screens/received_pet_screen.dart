@@ -124,12 +124,11 @@ class _ReceivedPetScreenState extends State<ReceivedPetScreen> {
 
           // 위젯 업데이트 (펫이 왔거나, 돌아갔을 때 모두 반영)
           if (!kIsWeb) {
-            if (receivedPets.isNotEmpty) {
-              HomeWidget.saveWidgetData<String>('pet_emoji', receivedPets.first['value']);
-            } else {
-              // 펫이 없으면 위젯 데이터 초기화
-              HomeWidget.saveWidgetData<String>('pet_emoji', null);
-            }
+            // 최대 3마리까지 위젯에 표시
+            final petsToShow = receivedPets.take(3).map((e) => e['value'] as String).toList();
+            final String? petData = petsToShow.isEmpty ? null : petsToShow.join(',');
+
+            HomeWidget.saveWidgetData<String>('pet_list', petData);
             HomeWidget.updateWidget(
               name: 'PetWidgetProvider',
               androidName: 'PetWidgetProvider',
@@ -336,7 +335,7 @@ class _ReceivedPetScreenState extends State<ReceivedPetScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 8.0),
                           child: Column(
                             children: [
-                              if (petMessage != null)
+                              if (petMessage != null && petMessage.isNotEmpty)
                                 Container(
                                   margin: const EdgeInsets.only(bottom: 8),
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
