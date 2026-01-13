@@ -101,7 +101,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Image.asset('assets/images/pets/cat.png', width: 120, height: 120),
               const SizedBox(height: 30),
               const Text(
-                '펫 위젯',
+                '놀러와 펫!',
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
