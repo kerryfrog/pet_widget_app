@@ -71,3 +71,5 @@ firebase_options.dart
 /macos/.symlinks/
 /macos/Flutter/Generated.xcconfig
 /macos/Flutter/flutter_export_environment.sh
+/ios/Runner/GoogleService-Info.plist
+/android/app/google-services.json
