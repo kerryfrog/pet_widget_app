@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -26,22 +27,30 @@ void callbackDispatcher() {
       final myId = prefs.getString('my_id');
 
       if (myId != null) {
-        final doc = await FirebaseFirestore.instance.collection('users').doc(myId).get();
-        final data = doc.data();
+        final visitorsSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(myId)
+            .collection('visitors')
+            .get();
 
-        if (data != null) {
-            final receivedPetsData = data['current_pets'] as List<dynamic>?;
-            final List<Map<String, dynamic>> receivedPets = receivedPetsData?.map((e) => e as Map<String, dynamic>).toList() ?? [];
+        final receivedPets = visitorsSnapshot.docs
+            .map((doc) => doc.data())
+            .toList();
 
-            final petsToShow = receivedPets.take(3).map((e) => e['value'] as String).toList();
-            final String? petData = petsToShow.isEmpty ? null : petsToShow.join(',');
-
-            await HomeWidget.saveWidgetData<String>('pet_list', petData);
-            await HomeWidget.updateWidget(
-                name: 'PetWidgetProvider',
-                androidName: 'PetWidgetProvider',
-            );
+        final firstPet = receivedPets.isNotEmpty ? receivedPets.first : null;
+        if (firstPet != null) {
+          await HomeWidget.saveWidgetData<String>('pet_emoji', firstPet['value']);
+          await HomeWidget.saveWidgetData<String>('sender_name', firstPet['sender_nickname']);
+          await HomeWidget.saveWidgetData<String>('pet_message', firstPet['message']);
+        } else {
+          await HomeWidget.saveWidgetData<String>('pet_emoji', null);
+          await HomeWidget.saveWidgetData<String>('sender_name', null);
+          await HomeWidget.saveWidgetData<String>('pet_message', null);
         }
+        await HomeWidget.updateWidget(
+            name: 'PetWidgetProvider',
+            androidName: 'PetWidgetProvider',
+        );
       }
     } catch (e) {
       debugPrint("백그라운드 작업 실패: $e");
@@ -57,23 +66,12 @@ Future<void> _checkAndReturnPets() async {
     final usersSnapshot = await FirebaseFirestore.instance.collection('users').get();
 
     for (var userDoc in usersSnapshot.docs) {
-      final userData = userDoc.data();
-      final currentPets = userData['current_pets'] as List<dynamic>?;
-
-      if (currentPets != null && currentPets.isNotEmpty) {
-        final List<dynamic> expiredPets = [];
-        for (final petData in currentPets) {
-          final returnTime = petData['return_time'] as Timestamp?;
-          if (returnTime != null && returnTime.toDate().isBefore(now)) {
-            expiredPets.add(petData);
-          }
-        }
-
-        if (expiredPets.isNotEmpty) {
-          await userDoc.reference.update({
-            'current_pets': FieldValue.arrayRemove(expiredPets),
-            'last_update': FieldValue.serverTimestamp(),
-          });
+      final visitorsSnapshot = await userDoc.reference.collection('visitors').get();
+      for (var visitorDoc in visitorsSnapshot.docs) {
+        final visitorData = visitorDoc.data();
+        final returnTime = visitorData['return_time'] as Timestamp?;
+        if (returnTime != null && returnTime.toDate().isBefore(now)) {
+          await visitorDoc.reference.delete();
           debugPrint("펫 자동 회수 완료 for user: ${userDoc.id}");
         }
       }
@@ -86,7 +84,7 @@ Future<void> _checkAndReturnPets() async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  
+  await MobileAds.instance.initialize();
   if (!kIsWeb) {
     await Workmanager().initialize(callbackDispatcher, isInDebugMode: true);
   }

@@ -21,13 +21,13 @@ class PetWidgetProvider : HomeWidgetProvider() {
                 setOnClickPendingIntent(R.id.widget_root, pendingIntent)
 
                 val petValue = widgetData.getString("pet_emoji", null)
-                val senderName = widgetData.getString("sender_name", null)
-                
-                if (petValue != null && senderName != null) {
-                    setViewVisibility(R.id.widget_sender_name, android.view.View.VISIBLE)
-                    setTextViewText(R.id.widget_sender_name, "${senderName}님이 보냄")
+                val petMessage = widgetData.getString("pet_message", null)
+
+                if (petMessage != null && petMessage.isNotEmpty()) {
+                    setViewVisibility(R.id.message_bubble_layout, android.view.View.VISIBLE)
+                    setTextViewText(R.id.widget_message_text, petMessage)
                 } else {
-                    setViewVisibility(R.id.widget_sender_name, android.view.View.GONE)
+                    setViewVisibility(R.id.message_bubble_layout, android.view.View.GONE)
                 }
 
                 val cleanPetValue = petValue?.split("/")?.lastOrNull() ?: petValue

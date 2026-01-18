@@ -299,65 +299,76 @@ class _FriendListScreenState extends State<FriendListScreen>
           itemBuilder: (context, index) {
             final data = docs[index].data() as Map<String, dynamic>;
             final id = data['id'];
-            final nickname = data['nickname'] ?? id;
+            final storedNickname = data['nickname'] ?? id;
 
-            if (status == 'accepted') {
-              // --- 친구 목록 ---
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: Colors.blue[100],
-                  child: const Icon(Icons.person, color: Colors.blue),
-                ),
-                title: Text(nickname, style: const TextStyle(fontWeight: FontWeight.bold)),
-                trailing: IconButton(
-                  icon: const Icon(Icons.person_remove, color: Colors.grey),
-                  onPressed: () => _showDeleteDialog(id, nickname),
-                ),
-              );
-            } else {
-              // --- 받은 요청 목록 ---
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Column(
-                    children: [
-                      Row(
+            return FutureBuilder<DocumentSnapshot>(
+              future: FirebaseFirestore.instance.collection('users').doc(id).get(),
+              builder: (context, userSnapshot) {
+                String displayName = storedNickname;
+                if (userSnapshot.connectionState == ConnectionState.done && userSnapshot.hasData && userSnapshot.data!.exists) {
+                  final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+                  displayName = userData['nickname'] ?? storedNickname;
+                }
+
+                if (status == 'accepted') {
+                  // --- 친구 목록 ---
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Colors.blue[100],
+                      child: const Icon(Icons.person, color: Colors.blue),
+                    ),
+                    title: Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.person_remove, color: Colors.grey),
+                      onPressed: () => _showDeleteDialog(id, displayName),
+                    ),
+                  );
+                } else {
+                  // --- 받은 요청 목록 ---
+                  return Card(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Column(
                         children: [
-                          const Icon(Icons.mail_outline, color: Colors.blue),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              '$nickname 님의 친구 요청',
-                              style: const TextStyle(fontSize: 16),
-                            ),
+                          Row(
+                            children: [
+                              const Icon(Icons.mail_outline, color: Colors.blue),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  '$displayName 님의 친구 요청',
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+                              ),
+                            ],
                           ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              TextButton(
+                                onPressed: () => _deleteFriendOrRequest(id),
+                                child: const Text('거절', style: TextStyle(color: Colors.grey)),
+                              ),
+                              const SizedBox(width: 8),
+                              ElevatedButton(
+                                onPressed: () => _acceptRequest(id, displayName),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue,
+                                  foregroundColor: Colors.white,
+                                ),
+                                child: const Text('수락'),
+                              ),
+                            ],
+                          )
                         ],
                       ),
-                      const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton(
-                            onPressed: () => _deleteFriendOrRequest(id),
-                            child: const Text('거절', style: TextStyle(color: Colors.grey)),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton(
-                            onPressed: () => _acceptRequest(id, nickname),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              foregroundColor: Colors.white,
-                            ),
-                            child: const Text('수락'),
-                          ),
-                        ],
-                      )
-                    ],
-                  ),
-                ),
-              );
-            }
+                    ),
+                  );
+                }
+              },
+            );
           },
         );
       },

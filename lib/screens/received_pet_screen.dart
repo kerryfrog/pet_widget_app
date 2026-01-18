@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class ReceivedPetScreen extends StatefulWidget {
   final String? myId;
@@ -21,37 +22,8 @@ class _ReceivedPetScreenState extends State<ReceivedPetScreen> {
   }
 
   Future<void> _checkAutoReturn() async {
-    if (widget.myId == null || widget.myId!.isEmpty) return;
-
-    try {
-      final docRef = FirebaseFirestore.instance.collection('users').doc(widget.myId);
-      final doc = await docRef.get();
-
-      if (!doc.exists) return;
-
-      final data = doc.data();
-      final currentPets = data?['current_pets'] as List<dynamic>?;
-
-      if (currentPets != null && currentPets.isNotEmpty) {
-        final now = DateTime.now();
-        final List<dynamic> expiredPets = [];
-        for (final petData in currentPets) {
-          final returnTime = petData['return_time'] as Timestamp?;
-          if (returnTime != null && returnTime.toDate().isBefore(now)) {
-            expiredPets.add(petData);
-          }
-        }
-
-        if (expiredPets.isNotEmpty) {
-          await docRef.update({
-            'current_pets': FieldValue.arrayRemove(expiredPets),
-            'last_update': FieldValue.serverTimestamp(),
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint("자동 회수 체크 실패: $e");
-    }
+    // This function is no longer needed.
+    // The auto-return logic is now handled by the StreamBuilder.
   }
 
   @override
@@ -64,10 +36,11 @@ class _ReceivedPetScreenState extends State<ReceivedPetScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('마당')),
-      body: StreamBuilder<DocumentSnapshot>(
+      body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('users')
             .doc(widget.myId)
+            .collection('visitors')
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
@@ -78,64 +51,47 @@ class _ReceivedPetScreenState extends State<ReceivedPetScreen> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          // 데이터 준비
-          final data = snapshot.hasData && snapshot.data!.exists
-              ? snapshot.data!.data() as Map<String, dynamic>
-              : null;
+          final receivedPets = snapshot.data!.docs
+              .map((doc) => doc.data() as Map<String, dynamic>)
+              .toList();
 
-          final nickname = data?['nickname'] as String? ?? '우리집';
-          
-          final receivedPetsData = data?['current_pets'] as List<dynamic>?;
-          final List<Map<String, dynamic>> receivedPets = receivedPetsData?.map((e) => e as Map<String, dynamic>).toList() ?? [];
-
-          // Backward compatibility for old data structure
-          final receivedPetValue = data?['current_pet'] as String?;
-          if (receivedPetValue != null) {
-            final sender = data!['sender'] as String?;
-            final senderNickname = data!['sender_nickname'] as String?;
-            receivedPets.add({
-              'value': receivedPetValue,
-              'sender': sender,
-              'sender_nickname': senderNickname,
-              'message': '안녕!', // Default message
-            });
-          }
-
-          // Auto-return logic inside StreamBuilder
           final now = DateTime.now();
-          final List<dynamic> expiredPets = [];
-          for (final petData in receivedPets) {
+          final List<QueryDocumentSnapshot> expiredPets = [];
+          for (final petDoc in snapshot.data!.docs) {
+            final petData = petDoc.data() as Map<String, dynamic>;
             final returnTime = petData['return_time'] as Timestamp?;
             if (returnTime != null && returnTime.toDate().isBefore(now)) {
-              expiredPets.add(petData);
+              expiredPets.add(petDoc);
             }
           }
+
           if (expiredPets.isNotEmpty) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              snapshot.data!.reference.update({
-                'current_pets': FieldValue.arrayRemove(expiredPets),
-                'last_update': FieldValue.serverTimestamp(),
-              });
+              for (var petDoc in expiredPets) {
+                petDoc.reference.delete();
+              }
             });
-            // Return empty screen immediately
-            return _buildEmptyScreen(nickname);
+            return _buildEmptyScreen('우리집');
           }
 
-
-          // 위젯 업데이트 (펫이 왔거나, 돌아갔을 때 모두 반영)
           if (!kIsWeb) {
-            // 최대 3마리까지 위젯에 표시
-            final petsToShow = receivedPets.take(3).map((e) => e['value'] as String).toList();
-            final String? petData = petsToShow.isEmpty ? null : petsToShow.join(',');
-
-            HomeWidget.saveWidgetData<String>('pet_list', petData);
+            final firstPet = receivedPets.isNotEmpty ? receivedPets.first : null;
+            if (firstPet != null) {
+              HomeWidget.saveWidgetData<String>('pet_emoji', firstPet['value']);
+              HomeWidget.saveWidgetData<String>('sender_name', firstPet['sender_nickname']);
+              HomeWidget.saveWidgetData<String>('pet_message', firstPet['message']);
+            } else {
+              HomeWidget.saveWidgetData<String>('pet_emoji', null);
+              HomeWidget.saveWidgetData<String>('sender_name', null);
+              HomeWidget.saveWidgetData<String>('pet_message', null);
+            }
             HomeWidget.updateWidget(
               name: 'PetWidgetProvider',
               androidName: 'PetWidgetProvider',
             );
           }
 
-          return _buildPetScreen(nickname, receivedPets);
+          return _buildPetScreen('우리집', receivedPets);
         },
       ),
     );
@@ -327,35 +283,53 @@ class _ReceivedPetScreenState extends State<ReceivedPetScreen> {
                   right: 0,
                   child: Center(
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: receivedPets.map((petData) {
                         final petValue = petData['value'] as String;
                         final petMessage = petData['message'] as String?;
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                          child: Column(
-                            children: [
-                              if (petMessage != null && petMessage.isNotEmpty)
-                                Container(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
+                        return Flexible( // Wrap with Flexible
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4.0), // Reduced padding
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                if (petMessage != null && petMessage.isNotEmpty)
+                                  Container(
+                                    margin: const EdgeInsets.only(bottom: 10.0),
+                                    child: Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+                                        SvgPicture.asset(
+                                          'assets/images/pixel_message.svg',
+                                          width: 120,
+                                          height: 60,
+                                          fit: BoxFit.contain,
+                                        ),
+                                        Transform.translate(
+                                          offset: const Offset(0, -5),
+                                          child: Text(
+                                            petMessage,
+                                            style: const TextStyle(color: Colors.black),
+                                            textAlign: TextAlign.center,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  child: Text(petMessage),
+                                Image.asset(
+                                  petValue.contains('/')
+                                      ? 'assets/images/$petValue.png'
+                                      : 'assets/images/pets/$petValue.png',
+                                  width: 100,
+                                  height: 100,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return const Icon(Icons.help_outline, size: 80, color: Colors.white);
+                                  },
                                 ),
-                              Image.asset(
-                                petValue.contains('/')
-                                    ? 'assets/images/$petValue.png'
-                                    : 'assets/images/pets/$petValue.png',
-                                width: 100,
-                                height: 100,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return const Icon(Icons.help_outline, size: 80, color: Colors.white);
-                                },
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         );
                       }).toList(),

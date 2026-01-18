@@ -4,6 +4,7 @@ import 'package:workmanager/workmanager.dart';
 import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
 import 'dart:async';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'received_pet_screen.dart';
 import 'send_pet_screen.dart';
@@ -23,16 +24,47 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   StreamSubscription? _widgetClickSubscription;
 
+  BannerAd? _bannerAd;
+  bool _isAdLoaded = false;
+
+  // 실제 출시 전에는 반드시 '테스트 ID'를 사용하세요!
+  final String adUnitId = 'ca-app-pub-3940256099942544/6300978111'; // Google Mobile Ads 테스트 광고 ID
+
   @override
   void initState() {
     super.initState();
     _loadMyId();
     _setupHomeWidget();
+    _loadAd(); // 광고 로드
+  }
+
+  /// 광고를 불러오는 함수
+  void _loadAd() {
+    _bannerAd = BannerAd(
+      adUnitId: adUnitId,
+      request: const AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        // 광고 로드 성공 시
+        onAdLoaded: (ad) {
+          debugPrint('$ad loaded.');
+          setState(() {
+            _isAdLoaded = true;
+          });
+        },
+        // 광고 로드 실패 시
+        onAdFailedToLoad: (ad, err) {
+          debugPrint('BannerAd failed to load: $err');
+          ad.dispose(); // 실패한 광고는 메모리에서 해제
+        },
+      ),
+    )..load();
   }
 
   @override
   void dispose() {
     _widgetClickSubscription?.cancel();
+    _bannerAd?.dispose(); // 메모리 누수 방지를 위해 해제 필수
     super.dispose();
   }
 
@@ -113,29 +145,40 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       body: widgetOptions.elementAt(_selectedIndex),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: '마당',
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          BottomNavigationBar(
+            type: BottomNavigationBarType.fixed,
+            items: const <BottomNavigationBarItem>[
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home),
+                label: '마당',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.pets),
+                label: '내 펫',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.people),
+                label: '친구',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person),
+                label: '마이페이지',
+              ),
+            ],
+            currentIndex: _selectedIndex,
+            selectedItemColor: Colors.blue,
+            onTap: _onItemTapped,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.pets),
-            label: '내 펫',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.people),
-            label: '친구',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: '마이페이지',
-          ),
+          if (_bannerAd != null && _isAdLoaded)
+            SizedBox(
+              width: _bannerAd!.size.width.toDouble(),
+              height: _bannerAd!.size.height.toDouble(),
+              child: AdWidget(ad: _bannerAd!),
+            ),
         ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.blue,
-        onTap: _onItemTapped,
       ),
     );
   }
