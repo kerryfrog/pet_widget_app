@@ -129,10 +129,10 @@ class _NicknameSettingScreenState extends State<NicknameSettingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.pink[50],
+      backgroundColor: Colors.blue[50],
       appBar: AppBar(
         title: const Text("닉네임 설정"),
-        backgroundColor: Colors.pink[50],
+        backgroundColor: Colors.blue[50],
         elevation: 0,
       ),
       body: Padding(
@@ -171,7 +171,7 @@ class _NicknameSettingScreenState extends State<NicknameSettingScreen> {
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _completeSignup,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.pink,
+                  backgroundColor: Colors.blue,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),

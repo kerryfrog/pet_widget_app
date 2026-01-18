@@ -93,7 +93,7 @@ class _NicknameEditDialogState extends State<_NicknameEditDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("'$nickname'으로 변경되었습니다!"),
-            backgroundColor: Colors.pink,
+            backgroundColor: Colors.blue,
           ),
         );
         widget.onSaved();
@@ -119,7 +119,7 @@ class _NicknameEditDialogState extends State<_NicknameEditDialog> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.pink[50],
+              color: Colors.blue[50],
               shape: BoxShape.circle,
             ),
             child: Image.asset(
@@ -156,7 +156,7 @@ class _NicknameEditDialogState extends State<_NicknameEditDialog> {
         ElevatedButton(
           onPressed: _saveNickname,
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.pink,
+            backgroundColor: Colors.blue,
             foregroundColor: Colors.white,
           ),
           child: const Text('저장'),
@@ -302,7 +302,7 @@ class _SendPetScreenState extends State<SendPetScreen> {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.pink[50],
+                    color: Colors.blue[50],
                     shape: BoxShape.circle,
                   ),
                   child: Image.asset(
@@ -474,7 +474,7 @@ class _SendPetScreenState extends State<SendPetScreen> {
                             label: const Text('친구에게 보내기'),
                             style: ElevatedButton.styleFrom(
                               minimumSize: const Size(double.infinity, 50),
-                              backgroundColor: Colors.pink,
+                              backgroundColor: Colors.blue,
                               foregroundColor: Colors.white,
                             ),
                           ),
@@ -564,7 +564,7 @@ class _SendPetScreenState extends State<SendPetScreen> {
                           leading: const CircleAvatar(child: Icon(Icons.person)),
                           title: Text(friendNickname),
                           subtitle: Text(friendId),
-                          trailing: const Icon(Icons.send, color: Colors.pink),
+                          trailing: const Icon(Icons.send, color: Colors.blue),
                           onTap: () async {
                             // 친구의 마당(current_pets) 상태 확인
                             try {
@@ -641,7 +641,7 @@ class _SendPetScreenState extends State<SendPetScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('$friendNickname 님에게 $petName을(를) 보냈어요!'),
-            backgroundColor: Colors.pink,
+            backgroundColor: Colors.blue,
           ),
         );
       }

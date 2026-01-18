@@ -190,7 +190,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     children: [
-                      const Icon(Icons.person_pin, size: 60, color: Colors.pink),
+                      const Icon(Icons.person_pin, size: 60, color: Colors.blue),
                       const SizedBox(height: 10),
                       // 로그인 정보 표시
                       ListTile(

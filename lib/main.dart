@@ -29,25 +29,18 @@ void callbackDispatcher() {
         final doc = await FirebaseFirestore.instance.collection('users').doc(myId).get();
         final data = doc.data();
 
-        if (data != null && data['current_pet'] != null) {
-          final String receivedPet = data['current_pet'];
-          final String senderName = data['sender_nickname'] ?? data['sender'] ?? '친구';
+        if (data != null) {
+            final receivedPetsData = data['current_pets'] as List<dynamic>?;
+            final List<Map<String, dynamic>> receivedPets = receivedPetsData?.map((e) => e as Map<String, dynamic>).toList() ?? [];
 
-          await HomeWidget.saveWidgetData<String>('pet_emoji', receivedPet);
-          await HomeWidget.saveWidgetData<String>('sender_name', senderName);
-          
-          await HomeWidget.updateWidget(
-            name: 'PetWidgetProvider',
-            androidName: 'PetWidgetProvider',
-          );
-        } else {
-          // 펫이 없으면 위젯 데이터 초기화
-          await HomeWidget.saveWidgetData<String>('pet_emoji', null);
-          await HomeWidget.saveWidgetData<String>('sender_name', null);
-          await HomeWidget.updateWidget(
-            name: 'PetWidgetProvider',
-            androidName: 'PetWidgetProvider',
-          );
+            final petsToShow = receivedPets.take(3).map((e) => e['value'] as String).toList();
+            final String? petData = petsToShow.isEmpty ? null : petsToShow.join(',');
+
+            await HomeWidget.saveWidgetData<String>('pet_list', petData);
+            await HomeWidget.updateWidget(
+                name: 'PetWidgetProvider',
+                androidName: 'PetWidgetProvider',
+            );
         }
       }
     } catch (e) {
@@ -61,29 +54,28 @@ void callbackDispatcher() {
 Future<void> _checkAndReturnPets() async {
   try {
     final now = DateTime.now();
-    final nowTimestamp = Timestamp.fromDate(now);
+    final usersSnapshot = await FirebaseFirestore.instance.collection('users').get();
 
-    // return_time이 현재 시간보다 이전인 모든 문서 찾기
-    final querySnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .where('return_time', isLessThan: nowTimestamp)
-        .get();
+    for (var userDoc in usersSnapshot.docs) {
+      final userData = userDoc.data();
+      final currentPets = userData['current_pets'] as List<dynamic>?;
 
-    for (var doc in querySnapshot.docs) {
-      final data = doc.data();
-      final returnTime = data['return_time'] as Timestamp?;
-      final currentPet = data['current_pet'];
-      
-      // return_time이 지났고 펫이 있으면 회수
-      if (returnTime != null && currentPet != null && returnTime.toDate().isBefore(now)) {
-        await doc.reference.update({
-          'current_pet': FieldValue.delete(),
-          'sender': FieldValue.delete(),
-          'sender_nickname': FieldValue.delete(),
-          'return_time': FieldValue.delete(),
-          'last_update': FieldValue.serverTimestamp(),
-        });
-        debugPrint("펫 자동 회수 완료: ${doc.id}");
+      if (currentPets != null && currentPets.isNotEmpty) {
+        final List<dynamic> expiredPets = [];
+        for (final petData in currentPets) {
+          final returnTime = petData['return_time'] as Timestamp?;
+          if (returnTime != null && returnTime.toDate().isBefore(now)) {
+            expiredPets.add(petData);
+          }
+        }
+
+        if (expiredPets.isNotEmpty) {
+          await userDoc.reference.update({
+            'current_pets': FieldValue.arrayRemove(expiredPets),
+            'last_update': FieldValue.serverTimestamp(),
+          });
+          debugPrint("펫 자동 회수 완료 for user: ${userDoc.id}");
+        }
       }
     }
   } catch (e) {
@@ -110,7 +102,7 @@ class PetWidgetApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Pet Widget App',
-      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.pink),
+      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.blue),
       home: const AuthCheckScreen(),
     );
   }

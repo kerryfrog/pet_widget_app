@@ -91,11 +91,11 @@ class _PetNicknameSettingScreenState extends State<PetNicknameSettingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.pink[50],
+      backgroundColor: Colors.blue[50],
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text("펫 닉네임 설정"),
-        backgroundColor: Colors.pink[50],
+        backgroundColor: Colors.blue[50],
         elevation: 0,
       ),
       body: SafeArea(
@@ -113,7 +113,7 @@ class _PetNicknameSettingScreenState extends State<PetNicknameSettingScreen> {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.pink.withOpacity(0.2),
+                      color: Colors.blue.withOpacity(0.2),
                       blurRadius: 20,
                       spreadRadius: 5,
                     ),
@@ -168,7 +168,7 @@ class _PetNicknameSettingScreenState extends State<PetNicknameSettingScreen> {
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _savePetNickname,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.pink,
+                    backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),

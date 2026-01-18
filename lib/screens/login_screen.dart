@@ -6,6 +6,7 @@ import 'package:workmanager/workmanager.dart';
 import '../auth_service.dart';
 import 'home_screen.dart';
 import 'nickname_setting_screen.dart';
+import 'package:flutter_svg/flutter_svg.dart'; // Added this import back
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -91,21 +92,21 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.pink[50],
+      backgroundColor: Colors.blue[50],
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset('assets/images/pets/cat.png', width: 120, height: 120),
+              Image.asset('assets/images/pets/dog_1.png', width: 120, height: 120),
               const SizedBox(height: 30),
               const Text(
                 '놀러와 펫!',
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
-                  color: Colors.pink,
+                  color: Colors.blue,
                 ),
               ),
               const SizedBox(height: 10),
@@ -117,26 +118,19 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 60),
               
               if (_isLoading)
-                const CircularProgressIndicator(color: Colors.pink)
+                const CircularProgressIndicator(color: Colors.blue)
               else
                 SizedBox(
-                  width: double.infinity,
-                  height: 55,
-                  child: ElevatedButton.icon(
-                    icon: Image.asset('assets/images/pets/cat.png', width: 24, height: 24),
-                    label: const Text(
-                      'Google로 시작하기',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  width: 200,
+                  height: 50,
+                  child: GestureDetector(
+                    onTap: _handleGoogleLogin,
+                    child: SvgPicture.asset(
+                      'assets/images/login/android_light_sq_SU.svg',
+                      width: 200,
+                      height: 50,
+                      fit: BoxFit.contain,
                     ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black87,
-                      elevation: 3,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                    ),
-                    onPressed: _handleGoogleLogin,
                   ),
                 ),
             ],

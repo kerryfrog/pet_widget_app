@@ -62,7 +62,7 @@ class _PetUnboxingScreenState extends State<PetUnboxingScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.pink[50],
+      backgroundColor: Colors.blue[50],
       body: Stack(
         alignment: Alignment.center,
         children: [
@@ -74,7 +74,7 @@ class _PetUnboxingScreenState extends State<PetUnboxingScreen>
               width: 200,
               height: 200,
               decoration: BoxDecoration(
-                color: Colors.pink[100]!.withOpacity(0.5),
+                color: Colors.blue[100]!.withOpacity(0.5),
                 shape: BoxShape.circle,
               ),
             ),
@@ -135,7 +135,7 @@ class _PetUnboxingScreenState extends State<PetUnboxingScreen>
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: Colors.pink,
+                        color: Colors.blue,
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -154,7 +154,7 @@ class _PetUnboxingScreenState extends State<PetUnboxingScreen>
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.pink.withOpacity(0.2),
+                            color: Colors.blue.withOpacity(0.2),
                             blurRadius: 20,
                             spreadRadius: 5,
                           ),
@@ -179,7 +179,7 @@ class _PetUnboxingScreenState extends State<PetUnboxingScreen>
                     ElevatedButton(
                       onPressed: _goToPetNicknameSetting,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.pink,
+                        backgroundColor: Colors.blue,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                         shape: RoundedRectangleBorder(

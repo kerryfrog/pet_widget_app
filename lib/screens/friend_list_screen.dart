@@ -305,11 +305,10 @@ class _FriendListScreenState extends State<FriendListScreen>
               // --- 친구 목록 ---
               return ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: Colors.pink[100],
-                  child: const Icon(Icons.person, color: Colors.pink),
+                  backgroundColor: Colors.blue[100],
+                  child: const Icon(Icons.person, color: Colors.blue),
                 ),
                 title: Text(nickname, style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text('ID: $id'),
                 trailing: IconButton(
                   icon: const Icon(Icons.person_remove, color: Colors.grey),
                   onPressed: () => _showDeleteDialog(id, nickname),
@@ -325,11 +324,11 @@ class _FriendListScreenState extends State<FriendListScreen>
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.mail_outline, color: Colors.pink),
+                          const Icon(Icons.mail_outline, color: Colors.blue),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              '$nickname ($id) 님의 친구 요청',
+                              '$nickname 님의 친구 요청',
                               style: const TextStyle(fontSize: 16),
                             ),
                           ),
@@ -347,7 +346,7 @@ class _FriendListScreenState extends State<FriendListScreen>
                           ElevatedButton(
                             onPressed: () => _acceptRequest(id, nickname),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.pink,
+                              backgroundColor: Colors.blue,
                               foregroundColor: Colors.white,
                             ),
                             child: const Text('수락'),
@@ -395,9 +394,9 @@ class _FriendListScreenState extends State<FriendListScreen>
         title: const Text('친구'),
         bottom: TabBar(
           controller: _tabController,
-          labelColor: Colors.pink,
+          labelColor: Colors.blue,
           unselectedLabelColor: Colors.grey,
-          indicatorColor: Colors.pink,
+          indicatorColor: Colors.blue,
           tabs: const [
             Tab(text: '내 친구'),
             Tab(text: '받은 요청'),
@@ -415,7 +414,7 @@ class _FriendListScreenState extends State<FriendListScreen>
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddFriendDialog,
-        backgroundColor: Colors.pink,
+        backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         child: const Icon(Icons.add),
       ),
