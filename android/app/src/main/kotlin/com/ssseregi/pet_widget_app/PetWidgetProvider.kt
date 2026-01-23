@@ -50,10 +50,9 @@ class PetWidgetProvider : HomeWidgetProvider() {
                     setViewVisibility(R.id.widget_pet_image, android.view.View.VISIBLE)
                     setImageViewResource(R.id.widget_pet_image, imageResId)
                 } else {
-                    // 텍스트를 보여주고 이미지를 숨깁니다.
-                    setViewVisibility(R.id.widget_emoji_text, android.view.View.VISIBLE)
+                    // 텍스트와 이미지를 모두 숨깁니다.
+                    setViewVisibility(R.id.widget_emoji_text, android.view.View.GONE)
                     setViewVisibility(R.id.widget_pet_image, android.view.View.GONE)
-                    setTextViewText(R.id.widget_emoji_text, petValue ?: "")
                 }
             }
             appWidgetManager.updateAppWidget(appWidgetId, views)

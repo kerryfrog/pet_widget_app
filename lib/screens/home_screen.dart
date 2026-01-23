@@ -28,7 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isAdLoaded = false;
 
   // 실제 출시 전에는 반드시 '테스트 ID'를 사용하세요!
-  final String adUnitId = 'ca-app-pub-2881048601217100/1659089571'; // Google Mobile Ads 테스트 광고 ID
+  final String adUnitId = 'ca-app-pub-3940256099942544/6300978111'; // Google Mobile Ads 테스트 광고 ID
 
   @override
   void initState() {

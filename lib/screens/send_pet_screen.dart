@@ -248,9 +248,9 @@ class _SendPetScreenState extends State<SendPetScreen> {
   String _getAdUnitId() {
     // Use test IDs for development. Replace with your own IDs for production.
     if (Platform.isAndroid) {
-      return 'ca-app-pub-2881048601217100/7558283516';
+      return 'ca-app-pub-3940256099942544/5224354917';
     } else if (Platform.isIOS) {
-      return 'ca-app-pub-2881048601217100/7558283516';
+      return 'ca-app-pub-3940256099942544/5224354917';
     } else {
       return '';
     }
