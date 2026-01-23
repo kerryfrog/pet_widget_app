@@ -39,23 +39,21 @@ struct PetWidgetEntryView : View {
 
     var body: some View {
         VStack {
-            Text("Pet Image: \(entry.petImage ?? "not set")")
-            Text("Pet Message: \(entry.petMessage ?? "not set")")
-            // Ccommented out until the user provides the image
-            // if let message = entry.petMessage, !message.isEmpty {
-            //     ZStack {
-            //         Image("pixel_message")
-            //             .resizable()
-            //             .frame(width: 80, height: 60)
-            //         Text(message)
-            //             .font(.system(size: 12))
-            //             .foregroundColor(.black)
-            //             .padding(.bottom, 5)
-            //     }
-            //     .padding(.bottom, -10)
-            // }
+            if let message = entry.petMessage, !message.isEmpty {
+                ZStack {
+                    Image("pixel_message")
+                        .resizable()
+                        .frame(width: 80, height: 60)
+                    Text(message)
+                        .font(.system(size: 12))
+                        .foregroundColor(.black)
+                        .padding(.bottom, 5)
+                }
+                .padding(.bottom, -10)
+            }
 
-            if let petImageName = entry.petImage, !petImageName.isEmpty,
+            let petImageName = entry.petImage?.components(separatedBy: "/").last ?? ""
+            if !petImageName.isEmpty,
                ["cat", "dog_1", "frog", "hamster", "horse_1", "parrot_1", "parrot_2", "rabbit"].contains(petImageName) {
                 Image(petImageName)
                     .resizable()
