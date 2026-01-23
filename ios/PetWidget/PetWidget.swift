@@ -39,6 +39,8 @@ struct PetWidgetEntryView : View {
 
     var body: some View {
         VStack {
+            Text("Pet Image: \(entry.petImage ?? "not set")")
+            Text("Pet Message: \(entry.petMessage ?? "not set")")
             // Ccommented out until the user provides the image
             // if let message = entry.petMessage, !message.isEmpty {
             //     ZStack {

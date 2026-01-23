@@ -48,7 +48,7 @@ void callbackDispatcher() {
           await HomeWidget.saveWidgetData<String>('pet_message', null);
         }
         await HomeWidget.updateWidget(
-            name: 'PetWidgetProvider',
+            name: 'PetWidget',
             androidName: 'PetWidgetProvider',
         );
       }
@@ -86,7 +86,13 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await MobileAds.instance.initialize();
   if (!kIsWeb) {
+    await HomeWidget.setAppGroupId("group.com.ssseregi.petWidgetApp");
     await Workmanager().initialize(callbackDispatcher, isInDebugMode: true);
+    await Workmanager().registerPeriodicTask(
+      "pet-widget-update",
+      "updatePetWidget",
+      frequency: const Duration(minutes: 15),
+    );
   }
 
   runApp(const PetWidgetApp());
