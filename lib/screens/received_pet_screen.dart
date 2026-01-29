@@ -190,7 +190,7 @@ class _ReceivedPetScreenState extends State<ReceivedPetScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text(petData['pet_nickname'] ?? '내 펫'),
+          title: Text(petData['pet_nickname']),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
