@@ -212,7 +212,7 @@ class _ReceivedPetScreenState extends State<ReceivedPetScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('${petData['sender_nickname'] ?? '알 수 없는'}님이 보냈습니다!'),
-              Text('펫 이름: ${petData['pet_nickname'] ?? '이름 없음'}'),
+              Text('${petData['pet_nickname'] ?? '이름 없음'}'),
             ],
           ),
           actions: [
