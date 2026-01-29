@@ -185,6 +185,33 @@ class _ReceivedPetScreenState extends State<ReceivedPetScreen> {
     );
   }
 
+  void _showPetInfoDialog(Map<String, dynamic> petData) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(petData['pet_nickname'] ?? '내 펫'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${petData['sender_nickname'] ?? '알 수 없는'}님이 보냈습니다!'),
+              Text('펫 이름: ${petData['pet_nickname'] ?? '이름 없음'}'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: const Text('닫기'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildPetScreen(String nickname, List<Map<String, dynamic>> receivedPets) {
     return Stack(
       children: [
@@ -250,7 +277,7 @@ class _ReceivedPetScreenState extends State<ReceivedPetScreen> {
                   child: Column(
                     children: [
                       Text(
-                        '$nickname 마당', 
+                        '$nickname 마당',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -288,47 +315,50 @@ class _ReceivedPetScreenState extends State<ReceivedPetScreen> {
                         final petValue = petData['value'] as String;
                         final petMessage = petData['message'] as String?;
                         return Flexible( // Wrap with Flexible
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4.0), // Reduced padding
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                if (petMessage != null && petMessage.isNotEmpty)
-                                  Container(
-                                    margin: const EdgeInsets.only(bottom: 10.0),
-                                    child: Stack(
-                                      alignment: Alignment.center,
-                                      children: [
-                                        SvgPicture.asset(
-                                          'assets/images/pixel_message.svg',
-                                          width: 120,
-                                          height: 60,
-                                          fit: BoxFit.contain,
-                                        ),
-                                        Transform.translate(
-                                          offset: const Offset(0, -5),
-                                          child: Text(
-                                            petMessage,
-                                            style: const TextStyle(color: Colors.black),
-                                            textAlign: TextAlign.center,
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
+                          child: GestureDetector(
+                            onTap: () => _showPetInfoDialog(petData),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4.0), // Reduced padding
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  if (petMessage != null && petMessage.isNotEmpty)
+                                    Container(
+                                      margin: const EdgeInsets.only(bottom: 10.0),
+                                      child: Stack(
+                                        alignment: Alignment.center,
+                                        children: [
+                                          SvgPicture.asset(
+                                            'assets/images/pixel_message.svg',
+                                            width: 120,
+                                            height: 60,
+                                            fit: BoxFit.contain,
                                           ),
-                                        ),
-                                      ],
+                                          Transform.translate(
+                                            offset: const Offset(0, -5),
+                                            child: Text(
+                                              petMessage,
+                                              style: const TextStyle(color: Colors.black),
+                                              textAlign: TextAlign.center,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
+                                  Image.asset(
+                                    petValue.contains('/')
+                                        ? 'assets/images/$petValue.png'
+                                        : 'assets/images/pets/$petValue.png',
+                                    width: 100,
+                                    height: 100,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return const Icon(Icons.help_outline, size: 80, color: Colors.white);
+                                    },
                                   ),
-                                Image.asset(
-                                  petValue.contains('/')
-                                      ? 'assets/images/$petValue.png'
-                                      : 'assets/images/pets/$petValue.png',
-                                  width: 100,
-                                  height: 100,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return const Icon(Icons.help_outline, size: 80, color: Colors.white);
-                                  },
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         );
