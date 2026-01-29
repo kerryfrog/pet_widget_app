@@ -614,6 +614,7 @@ class _SendPetScreenState extends State<SendPetScreen> {
           'sender': myId,
           'sender_nickname': _myNickname,
           'message': message,
+          'pet_nickname': petName,
           'return_time': Timestamp.fromDate(DateTime.now().add(const Duration(hours: 1))),
         };
         transaction.set(friendRef.collection('visitors').doc(), newPetData);
