@@ -46,13 +46,18 @@ class PetWidgetProvider : HomeWidgetProvider() {
 
                 if (imageResId != 0) {
                     // 이미지를 보여주고 텍스트를 숨깁니다.
-                    setViewVisibility(R.id.widget_emoji_text, android.view.View.GONE)
                     setViewVisibility(R.id.widget_pet_image, android.view.View.VISIBLE)
                     setImageViewResource(R.id.widget_pet_image, imageResId)
-                } else {
-                    // 텍스트와 이미지를 모두 숨깁니다.
                     setViewVisibility(R.id.widget_emoji_text, android.view.View.GONE)
+                } else if (!petValue.isNullOrEmpty()) {
+                    // 이미지가 없을 경우 텍스트(이모지)를 보여줍니다.
                     setViewVisibility(R.id.widget_pet_image, android.view.View.GONE)
+                    setViewVisibility(R.id.widget_emoji_text, android.view.View.VISIBLE)
+                    setTextViewText(R.id.widget_emoji_text, petValue)
+                } else {
+                    // 펫 정보가 없을 경우 모두 숨깁니다.
+                    setViewVisibility(R.id.widget_pet_image, android.view.View.GONE)
+                    setViewVisibility(R.id.widget_emoji_text, android.view.View.GONE)
                 }
             }
             appWidgetManager.updateAppWidget(appWidgetId, views)
