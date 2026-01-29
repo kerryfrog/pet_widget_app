@@ -185,12 +185,28 @@ class _ReceivedPetScreenState extends State<ReceivedPetScreen> {
     );
   }
 
+  String _getDialogTitle(String? petNickname) {
+    String petName = petNickname ?? '이름 없는 펫';
+
+    // Check for final consonant (Jongseong) in Hangul
+    if (petName.isNotEmpty) {
+      final lastChar = petName.codeUnitAt(petName.length - 1);
+      if (lastChar >= 0xAC00 && lastChar <= 0xD7A3) { // Hangul Syllables range
+        final hasJongseong = (lastChar - 0xAC00) % 28 != 0;
+        final particle = hasJongseong ? '이' : '가';
+        return '$petName$particle 찾아왔어요';
+      }
+    }
+    // Default for non-Hangul names or empty string
+    return '$petName' + '가 찾아왔어요';
+  }
+
   void _showPetInfoDialog(Map<String, dynamic> petData) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text(petData['pet_nickname'] ?? '이름 없음'),
+          title: Text(_getDialogTitle(petData['pet_nickname'])),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
