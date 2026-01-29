@@ -89,6 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _selectedIndex = 0;
       });
+    });
     }
   }
 
@@ -146,14 +147,81 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       body: widgetOptions.elementAt(_selectedIndex),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _updateWidget,
-        child: const Icon(Icons.refresh),
-      ),
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           BottomNavigationBar(
+            type: BottomNavigationBarType.fixed,
+            items: const <BottomNavigationBarItem>[
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home),
+                label: '마당',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.pets),
+                label: '내 펫',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.people),
+                label: '친구',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person),
+                label: '마이페이지',
+              ),
+            ],
+            currentIndex: _selectedIndex,
+            selectedItemColor: Colors.blue,
+            onTap: _onItemTapped,
+          ),
+          if (_bannerAd != null && _isAdLoaded)
+            SizedBox(
+              width: _bannerAd!.size.width.toDouble(),
+              height: _bannerAd!.size.height.toDouble(),
+              child: AdWidget(ad: _bannerAd!),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateWidget() async {
+    try {
+        final prefs = await SharedPreferences.getInstance();
+        final myId = prefs.getString('my_id');
+
+      if (myId != null) {
+        final visitorsSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(myId)
+            .collection('visitors')
+            .get();
+
+        final receivedPets = visitorsSnapshot.docs
+            .map((doc) => doc.data())
+            .toList();
+
+        final firstPet = receivedPets.isNotEmpty ? receivedPets.first : null;
+        if (firstPet != null) {
+          await HomeWidget.saveWidgetData<String>('pet_emoji', firstPet['value']);
+          await HomeWidget.saveWidgetData<String>('sender_name', firstPet['sender_nickname']);
+          await HomeWidget.saveWidgetData<String>('pet_message', firstPet['message']);
+        } else {
+          await HomeWidget.saveWidgetData<String>('pet_emoji', null);
+          await HomeWidget.saveWidgetData<String>('sender_name', null);
+          await HomeWidget.saveWidgetData<String>('pet_message', null);
+        }
+        await HomeWidget.updateWidget(
+            name: 'PetWidget',
+            androidName: 'PetWidgetProvider',
+        );
+      }
+    } catch (e) {
+      debugPrint("위젯 업데이트 실패: $e");
+    }
+  }
+}
+      BottomNavigationBar(
             type: BottomNavigationBarType.fixed,
             items: const <BottomNavigationBarItem>[
               BottomNavigationBarItem(
