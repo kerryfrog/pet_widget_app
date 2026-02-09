@@ -36,7 +36,7 @@ target 'Runner' do
   end
 end
 
-target 'PetWidgetExtension' do
+target 'PetWidgetExtensionExtension' do
   inherit! :search_paths
   use_frameworks!
 end

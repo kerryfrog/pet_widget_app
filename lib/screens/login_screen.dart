@@ -8,6 +8,7 @@ import 'home_screen.dart';
 import 'nickname_setting_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart'; // Added this import back
 import 'dart:io';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart'; // Import for SignInWithAppleButton
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -212,8 +213,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   height: 50,
                   child: GestureDetector(
                     onTap: _handleAppleLogin,
-                    child: SvgPicture.asset(
-                      'assets/images/login/apple_logo.svg', // Assuming you have an Apple login SVG
+                    child: Image.asset(
+                      'assets/images/login/appleid_button.png', // Using the custom Apple ID button asset
                       width: 200,
                       height: 50,
                       fit: BoxFit.contain,

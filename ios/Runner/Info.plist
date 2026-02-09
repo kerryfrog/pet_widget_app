@@ -35,13 +35,15 @@
 			</array>
 		</dict>
 	</array>
-	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-2881048601217100~2090334414</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-2881048601217100~2090334414</string>
 	<key>GIDClientID</key>
 	<string>988007069622-jgfob9sln8quhni5jf8vd9ml6mb5c812.apps.googleusercontent.com</string>
 	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
@@ -62,7 +64,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>NSSupportsLiveActivities</key>
-	<true/>
 </dict>
 </plist>

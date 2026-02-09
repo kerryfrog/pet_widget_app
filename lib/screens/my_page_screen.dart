@@ -196,7 +196,13 @@ class _MyPageScreenState extends State<MyPageScreen> {
                       ListTile(
                         leading: const Icon(Icons.email),
                         title: const Text('로그인 계정'),
-                        subtitle: Text(_currentUser?.email ?? '게스트 로그인'),
+                        subtitle: Text(
+                          _currentUser != null && _currentUser!.providerData.any(
+                            (info) => info.providerId == 'apple.com',
+                          )
+                              ? '애플 로그인'
+                              : (_currentUser?.email ?? '게스트 로그인'),
+                        ),
                       ),
                       const Divider(),
                       const SizedBox(height: 8),

@@ -54,7 +54,8 @@ class AuthService {
       );
 
       // 3. Firebase 로그인
-      await FirebaseAuth.instance.signInWithCredential(credential);
+      final UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      return userCredential;
     } catch (e) {
       print("Apple Login Error: $e");
       return null;
