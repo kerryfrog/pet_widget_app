@@ -7,6 +7,7 @@ import '../auth_service.dart';
 import 'home_screen.dart';
 import 'nickname_setting_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart'; // Added this import back
+import 'dart:io';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -89,6 +90,77 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _handleAppleLogin() async {
+    setState(() => _isLoading = true);
+    try {
+      final userCredential = await AuthService().signInWithApple();
+      if (userCredential != null && userCredential.user != null) {
+        final user = userCredential.user!;
+        
+        // Firestore에서 해당 uid를 가진 유저가 있는지 확인
+        final querySnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .where('uid', isEqualTo: user.uid)
+            .limit(1)
+            .get();
+
+        if (querySnapshot.docs.isNotEmpty) {
+          // 1. 이미 가입된 유저 -> 홈 화면으로 이동
+          final userDoc = querySnapshot.docs.first;
+          final userData = userDoc.data();
+          final myId = userDoc.id; // 문서 ID가 myId
+          final myNickname = userData['nickname'] ?? '';
+
+          // 로컬 저장
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('my_id', myId);
+          await prefs.setString('my_nickname', myNickname);
+
+          // 백그라운드 작업 등록
+          if (!kIsWeb) {
+            Workmanager().registerPeriodicTask(
+              "pet_check_task",
+              "checkFirebaseForPets",
+              frequency: const Duration(minutes: 15),
+              constraints: Constraints(networkType: NetworkType.connected),
+            );
+          }
+
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+            );
+          }
+        } else {
+          // 2. 신규 유저 -> 닉네임 설정 화면으로 이동
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => NicknameSettingScreen(user: user),
+              ),
+            );
+          }
+        }
+      } else {
+         if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Apple 로그인이 취소되었습니다.')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Apple 로그인 오류: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -127,6 +199,21 @@ class _LoginScreenState extends State<LoginScreen> {
                     onTap: _handleGoogleLogin,
                     child: SvgPicture.asset(
                       'assets/images/login/android_light_sq_SU.svg',
+                      width: 200,
+                      height: 50,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 10), // Add spacing between buttons
+              if (Platform.isIOS)
+                SizedBox(
+                  width: 200,
+                  height: 50,
+                  child: GestureDetector(
+                    onTap: _handleAppleLogin,
+                    child: SvgPicture.asset(
+                      'assets/images/login/apple_logo.svg', // Assuming you have an Apple login SVG
                       width: 200,
                       height: 50,
                       fit: BoxFit.contain,

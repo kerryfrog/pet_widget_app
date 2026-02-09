@@ -4,7 +4,7 @@
 <dict>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.com.ssseregi.petWidgetApp</string>
+		<string>group.com.ssseregi.petWidget</string>
 	</array>
 </dict>
 </plist>
