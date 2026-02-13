@@ -48,6 +48,25 @@ class _MyPageScreenState extends State<MyPageScreen> {
     super.dispose();
   }
 
+  String _getLoginInfo() {
+    if (_currentUser == null) {
+      return '게스트 로그인';
+    }
+
+    // 애플 로그인인지 확인
+    if (_currentUser!.providerData.any((info) => info.providerId == 'apple.com')) {
+      return '애플 로그인';
+    }
+
+    // 구글 로그인인지 확인
+    if (_currentUser!.providerData.any((info) => info.providerId == 'google.com')) {
+      return _currentUser!.email ?? '구글 계정';
+    }
+
+    // 기타 로그인
+    return _currentUser!.email ?? '게스트 로그인';
+  }
+
   Future<void> _saveInfo() async {
     final myId = widget.currentId;
     final newNickname = _nicknameController.text.trim();
@@ -196,13 +215,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                       ListTile(
                         leading: const Icon(Icons.email),
                         title: const Text('로그인 계정'),
-                        subtitle: Text(
-                          _currentUser != null && _currentUser!.providerData.any(
-                            (info) => info.providerId == 'apple.com',
-                          )
-                              ? '애플 로그인'
-                              : (_currentUser?.email ?? '게스트 로그인'),
-                        ),
+                        subtitle: Text(_getLoginInfo()),
                       ),
                       const Divider(),
                       const SizedBox(height: 8),

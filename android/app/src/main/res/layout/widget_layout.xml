@@ -36,8 +36,8 @@
             android:visibility="gone">
 
             <ImageView
-                android:layout_width="60dp"
-                android:layout_height="50dp"
+                android:layout_width="80dp"
+                android:layout_height="60dp"
                 android:src="@drawable/pixel_message"
                 android:scaleType="fitXY" />
 

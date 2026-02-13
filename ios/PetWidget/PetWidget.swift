@@ -1,7 +1,7 @@
 import WidgetKit
 import SwiftUI
 
-let AppGroup = "group.com.ssseregi.petWidgetApp"
+let AppGroup = "group.com.ssseregi.petWidget"
 
 struct Provider: TimelineProvider {
     func placeholder(in context: Context) -> SimpleEntry {
@@ -18,12 +18,18 @@ struct Provider: TimelineProvider {
         let userDefaults = UserDefaults(suiteName: AppGroup)
         let petImage = userDefaults?.string(forKey: "pet_emoji")
         let petMessage = userDefaults?.string(forKey: "pet_message")
+        
+        // 디버깅을 위한 로그
+        print("PetWidget - petImage: \(petImage ?? "nil")")
+        print("PetWidget - petMessage: \(petMessage ?? "nil")")
 
         let currentDate = Date()
         let entry = SimpleEntry(date: currentDate, petImage: petImage, petMessage: petMessage)
         entries.append(entry)
 
-        let timeline = Timeline(entries: entries, policy: .atEnd)
+        // 5분마다 자동 새로고침
+        let nextUpdate = Calendar.current.date(byAdding: .minute, value: 5, to: currentDate)!
+        let timeline = Timeline(entries: entries, policy: .after(nextUpdate))
         completion(timeline)
     }
 }

@@ -4,6 +4,7 @@ import 'package:workmanager/workmanager.dart';
 import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
 import 'dart:async';
+import 'dart:io'; // Import for Platform.isAndroid/isIOS
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -24,13 +25,24 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _myId;
   bool _isLoading = true;
   StreamSubscription? _widgetClickSubscription;
+  int _pendingRequestsCount = 0;
 
   BannerAd? _bannerAd;
   bool _isAdLoaded = false;
 
   // 실제 출시 전에는 반드시 '테스트 ID'를 사용하세요!
-  // final String adUnitId = 'ca-app-pub-3940256099942544/6300978111'; // Google Mobile Ads 테스트 광고 ID
-  final String adUnitId = 'ca-app-pub-2881048601217100/1659089571';
+  // Android test ad unit ID: ca-app-pub-3940256099942544/6300978111
+  // iOS test ad unit ID: ca-app-pub-3940256099942544/2934735716
+  // final String adUnitId = 'ca-app-pub-2881048601217100/1659089571'; // Original hardcoded ID
+
+  String _getBannerAdUnitId() {
+    if (Platform.isAndroid) {
+      return 'ca-app-pub-3940256099942544/6300978111'; // Android banner test ID
+    } else if (Platform.isIOS) {
+      return 'ca-app-pub-2881048601217100/5015425742'; // iOS banner test ID
+    }
+    return 'ca-app-pub-3940256099942544/6300978111'; // Fallback to Android test ID
+  }
 
   @override
   void initState() {
@@ -38,12 +50,34 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadMyId();
     _setupHomeWidget();
     _loadAd(); // 광고 로드
+    _listenToPendingRequests();
+  }
+
+  void _listenToPendingRequests() async {
+    final prefs = await SharedPreferences.getInstance();
+    final myId = prefs.getString('my_id');
+    
+    if (myId != null) {
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(myId)
+          .collection('friends')
+          .where('status', isEqualTo: 'pending_received')
+          .snapshots()
+          .listen((snapshot) {
+        if (mounted) {
+          setState(() {
+            _pendingRequestsCount = snapshot.docs.length;
+          });
+        }
+      });
+    }
   }
 
   /// 광고를 불러오는 함수
   void _loadAd() {
     _bannerAd = BannerAd(
-      adUnitId: adUnitId,
+      adUnitId: _getBannerAdUnitId(),
       request: const AdRequest(),
       size: AdSize.banner,
       listener: BannerAdListener(
@@ -152,20 +186,26 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           BottomNavigationBar(
             type: BottomNavigationBarType.fixed,
-            items: const <BottomNavigationBarItem>[
-              BottomNavigationBarItem(
+            items: <BottomNavigationBarItem>[
+              const BottomNavigationBarItem(
                 icon: Icon(Icons.home),
                 label: '마당',
               ),
-              BottomNavigationBarItem(
+              const BottomNavigationBarItem(
                 icon: Icon(Icons.pets),
                 label: '내 펫',
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.people),
+                icon: _pendingRequestsCount > 0
+                    ? Badge(
+                        label: Text('$_pendingRequestsCount'),
+                        backgroundColor: Colors.red,
+                        child: const Icon(Icons.people),
+                      )
+                    : const Icon(Icons.people),
                 label: '친구',
               ),
-              BottomNavigationBarItem(
+              const BottomNavigationBarItem(
                 icon: Icon(Icons.person),
                 label: '마이페이지',
               ),
@@ -212,7 +252,8 @@ class _HomeScreenState extends State<HomeScreen> {
           await HomeWidget.saveWidgetData<String>('pet_message', null);
         }
         await HomeWidget.updateWidget(
-            name: 'PetWidget',
+            name: 'PetWidget', // Keep for older versions or other platforms
+            iOSName: 'PetWidget', // Use iOSName for iOS
             androidName: 'PetWidgetProvider',
         );
       }

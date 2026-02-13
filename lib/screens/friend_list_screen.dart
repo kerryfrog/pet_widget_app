@@ -16,12 +16,32 @@ class _FriendListScreenState extends State<FriendListScreen>
   final TextEditingController _searchController = TextEditingController();
   late TabController _tabController;
   String? _myNickname;
+  int _pendingRequestsCount = 0;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadMyNickname();
+    _listenToPendingRequests();
+  }
+
+  void _listenToPendingRequests() {
+    if (widget.myId != null) {
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.myId)
+          .collection('friends')
+          .where('status', isEqualTo: 'pending_received')
+          .snapshots()
+          .listen((snapshot) {
+        if (mounted) {
+          setState(() {
+            _pendingRequestsCount = snapshot.docs.length;
+          });
+        }
+      });
+    }
   }
 
   Future<void> _loadMyNickname() async {
@@ -408,9 +428,34 @@ class _FriendListScreenState extends State<FriendListScreen>
           labelColor: Colors.blue,
           unselectedLabelColor: Colors.grey,
           indicatorColor: Colors.blue,
-          tabs: const [
-            Tab(text: '내 친구'),
-            Tab(text: '받은 요청'),
+          tabs: [
+            const Tab(text: '내 친구'),
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('받은 요청'),
+                  if (_pendingRequestsCount > 0) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '$_pendingRequestsCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ],
         ),
       ),

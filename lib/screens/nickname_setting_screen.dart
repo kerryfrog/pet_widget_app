@@ -87,6 +87,7 @@ class _NicknameSettingScreenState extends State<NicknameSettingScreen> {
           'createdAt': FieldValue.serverTimestamp(),
           'my_pets': [assignedPet!['value']], // 랜덤 펫 추가
           'partner_pet': assignedPet!['value'], // 파트너 펫 설정
+          'level': 1, // 모든 유저는 레벨 1로 시작
         };
 
         transaction.set(userRef, userData, SetOptions(merge: true));

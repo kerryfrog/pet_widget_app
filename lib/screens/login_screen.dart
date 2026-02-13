@@ -40,6 +40,11 @@ class _LoginScreenState extends State<LoginScreen> {
           final userData = userDoc.data();
           final myId = userDoc.id; // 문서 ID가 myId
           final myNickname = userData['nickname'] ?? '';
+          
+          // level이 없으면 1로 설정
+          if (userData['level'] == null) {
+            await FirebaseFirestore.instance.collection('users').doc(myId).update({'level': 1});
+          }
 
           // 로컬 저장
           final prefs = await SharedPreferences.getInstance();
@@ -111,6 +116,11 @@ class _LoginScreenState extends State<LoginScreen> {
           final userData = userDoc.data();
           final myId = userDoc.id; // 문서 ID가 myId
           final myNickname = userData['nickname'] ?? '';
+          
+          // level이 없으면 1로 설정
+          if (userData['level'] == null) {
+            await FirebaseFirestore.instance.collection('users').doc(myId).update({'level': 1});
+          }
 
           // 로컬 저장
           final prefs = await SharedPreferences.getInstance();

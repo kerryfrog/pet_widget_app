@@ -75,20 +75,30 @@ class _ReceivedPetScreenState extends State<ReceivedPetScreen> {
           }
 
           if (!kIsWeb) {
-            final firstPet = receivedPets.isNotEmpty ? receivedPets.first : null;
-            if (firstPet != null) {
-              HomeWidget.saveWidgetData<String>('pet_emoji', firstPet['value']);
-              HomeWidget.saveWidgetData<String>('sender_name', firstPet['sender_nickname']);
-              HomeWidget.saveWidgetData<String>('pet_message', firstPet['message']);
-            } else {
-              HomeWidget.saveWidgetData<String>('pet_emoji', null);
-              HomeWidget.saveWidgetData<String>('sender_name', null);
-              HomeWidget.saveWidgetData<String>('pet_message', null);
-            }
-            HomeWidget.updateWidget(
-              name: 'PetWidgetProvider',
-              androidName: 'PetWidgetProvider',
-            );
+            WidgetsBinding.instance.addPostFrameCallback((_) async {
+              final firstPet = receivedPets.isNotEmpty ? receivedPets.first : null;
+              if (firstPet != null) {
+                debugPrint('=== 위젯 업데이트: 펫 있음 ===');
+                debugPrint('pet_emoji: ${firstPet['value']}');
+                debugPrint('sender_name: ${firstPet['sender_nickname']}');
+                debugPrint('pet_message: ${firstPet['message']}');
+                await HomeWidget.saveWidgetData<String>('pet_emoji', firstPet['value']);
+                await HomeWidget.saveWidgetData<String>('sender_name', firstPet['sender_nickname']);
+                await HomeWidget.saveWidgetData<String>('pet_message', firstPet['message']);
+              } else {
+                debugPrint('=== 위젯 업데이트: 펫 없음 ===');
+                await HomeWidget.saveWidgetData<String>('pet_emoji', null);
+                await HomeWidget.saveWidgetData<String>('sender_name', null);
+                await HomeWidget.saveWidgetData<String>('pet_message', null);
+              }
+              debugPrint('위젯 업데이트 호출 중...');
+              await HomeWidget.updateWidget(
+                name: 'PetWidget',
+                iOSName: 'PetWidget',
+                androidName: 'PetWidgetProvider',
+              );
+              debugPrint('위젯 업데이트 완료');
+            });
           }
 
           return _buildPetScreen('우리집', receivedPets);

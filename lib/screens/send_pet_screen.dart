@@ -201,9 +201,9 @@ class _SendMessageDialogState extends State<_SendMessageDialog> {
       content: TextField(
         controller: _messageController,
         decoration: const InputDecoration(
-          hintText: '2글자 이하 입력 (선택)',
+          hintText: '3글자 이하 입력 (선택)',
         ),
-        maxLength: 2,
+        maxLength: 3,
       ),
       actions: [
         TextButton(
@@ -248,15 +248,14 @@ class _SendPetScreenState extends State<SendPetScreen> {
   String _getAdUnitId() {
     // Use test IDs for development. Replace with your own IDs for production.
     if (Platform.isAndroid) {
-
-      //test 용 
-      // return 'ca-app-pub-3940256099942544/5224354917';
-      return 'ca-app-pub-2881048601217100/7558283516';
+      // Android rewarded test ad unit ID
+      // return 'ca-app-pub-3940256099942544/5224354917'; 
+      return 'ca-app-pub-2881048601217100/7558283516'; // Original production for Android
     } else if (Platform.isIOS) {
-      // return 'ca-app-pub-3940256099942544/5224354917';
-      return 'ca-app-pub-2881048601217100/7558283516';
+      // return 'ca-app-pub-3940256099942544/1712485313'; //iOS rewarded test ad unit ID
+      return 'ca-app-pub-2881048601217100/7134312888'; // Original production for iOS
     } else {
-      return '';
+      return 'ca-app-pub-2881048601217100/7558283516'; 
     }
   }
 
