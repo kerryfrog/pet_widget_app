@@ -30,18 +30,15 @@ class _HomeScreenState extends State<HomeScreen> {
   BannerAd? _bannerAd;
   bool _isAdLoaded = false;
 
-  // 실제 출시 전에는 반드시 '테스트 ID'를 사용하세요!
-  // Android test ad unit ID: ca-app-pub-3940256099942544/6300978111
-  // iOS test ad unit ID: ca-app-pub-3940256099942544/2934735716
-  // final String adUnitId = 'ca-app-pub-2881048601217100/1659089571'; // Original hardcoded ID
+  // Production banner ad unit IDs
 
   String _getBannerAdUnitId() {
     if (Platform.isAndroid) {
-      return 'ca-app-pub-3940256099942544/6300978111'; // Android banner test ID
+      return 'ca-app-pub-2881048601217100/1659089571'; // Android banner production ID
     } else if (Platform.isIOS) {
-      return 'ca-app-pub-2881048601217100/5015425742'; // iOS banner test ID
+      return 'ca-app-pub-2881048601217100/5015425742'; // iOS banner production ID
     }
-    return 'ca-app-pub-3940256099942544/6300978111'; // Fallback to Android test ID
+    return 'ca-app-pub-2881048601217100/1659089571'; // Fallback to Android banner production ID
   }
 
   @override

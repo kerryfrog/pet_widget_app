@@ -1,10 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 import '../auth_service.dart';
-import '../constants.dart';
 import 'login_screen.dart';
 
 class MyPageScreen extends StatefulWidget {
@@ -23,14 +23,26 @@ class MyPageScreen extends StatefulWidget {
 
 class _MyPageScreenState extends State<MyPageScreen> {
   final TextEditingController _nicknameController = TextEditingController();
-  String? _oldNickname;
   User? _currentUser;
+  String? _userPetEmoji;
+  String? _userEmailFromFirestore;
+
+  String? _resolvePetImageAssetPath() {
+    final petValue = _userPetEmoji;
+    if (petValue == null || petValue.isEmpty) return null;
+
+    if (petValue.contains('/')) {
+      return 'assets/images/$petValue.png';
+    }
+    return 'assets/images/pets/$petValue.png';
+  }
 
   @override
   void initState() {
     super.initState();
     _loadNickname();
     _currentUser = AuthService().currentUser;
+    _loadUserPet();
   }
 
   Future<void> _loadNickname() async {
@@ -38,8 +50,48 @@ class _MyPageScreenState extends State<MyPageScreen> {
     final nickname = prefs.getString('my_nickname') ?? '';
     setState(() {
       _nicknameController.text = nickname;
-      _oldNickname = nickname;
     });
+  }
+
+  Future<void> _loadUserPet() async {
+    if (widget.currentId != null) {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.currentId)
+          .get();
+      if (userDoc.exists) {
+        final data = userDoc.data()!;
+        final myPets = data.containsKey('my_pets')
+            ? List<String>.from(data['my_pets'])
+            : <String>[];
+        setState(() {
+          _userPetEmoji = myPets.isNotEmpty ? myPets.first : null;
+          _userEmailFromFirestore = data['email'] as String?;
+        });
+        return;
+      }
+    }
+
+    final uid = _currentUser?.uid;
+    if (uid == null || uid.isEmpty) return;
+
+    // Fallback: if users/{my_id} doc is missing or mismatched, find by uid.
+    final querySnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .where('uid', isEqualTo: uid)
+        .limit(1)
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      final data = querySnapshot.docs.first.data();
+      final myPets = data.containsKey('my_pets')
+          ? List<String>.from(data['my_pets'])
+          : <String>[];
+      setState(() {
+        _userPetEmoji = myPets.isNotEmpty ? myPets.first : _userPetEmoji;
+        _userEmailFromFirestore = data['email'] as String?;
+      });
+    }
   }
 
   @override
@@ -52,101 +104,167 @@ class _MyPageScreenState extends State<MyPageScreen> {
     if (_currentUser == null) {
       return '게스트 로그인';
     }
-
-    // 애플 로그인인지 확인
-    if (_currentUser!.providerData.any((info) => info.providerId == 'apple.com')) {
-      return '애플 로그인';
+    final providerId = _getLoginProviderId();
+    final authEmail = _currentUser!.email;
+    if (authEmail != null && authEmail.isNotEmpty) {
+      return authEmail;
     }
 
-    // 구글 로그인인지 확인
-    if (_currentUser!.providerData.any((info) => info.providerId == 'google.com')) {
-      return _currentUser!.email ?? '구글 계정';
+    for (final provider in _currentUser!.providerData) {
+      final providerEmail = provider.email;
+      if (providerEmail != null && providerEmail.isNotEmpty) {
+        return providerEmail;
+      }
     }
 
-    // 기타 로그인
-    return _currentUser!.email ?? '게스트 로그인';
+    final firestoreEmail = _userEmailFromFirestore;
+    if (firestoreEmail != null && firestoreEmail.isNotEmpty) {
+      return firestoreEmail;
+    }
+
+    if (providerId == 'apple.com') {
+      return '이메일 비공개';
+    }
+
+    return '이메일 정보 없음';
   }
 
-  Future<void> _saveInfo() async {
-    final myId = widget.currentId;
-    final newNickname = _nicknameController.text.trim();
+  String _getLoginProviderId() {
+    if (_currentUser == null) return 'guest';
 
+    for (final provider in _currentUser!.providerData) {
+      if (provider.providerId == 'google.com') return 'google.com';
+      if (provider.providerId == 'apple.com') return 'apple.com';
+    }
+
+    return 'unknown';
+  }
+
+  Widget _buildLoginProviderIcon() {
+    final providerId = _getLoginProviderId();
+
+    if (providerId == 'google.com') {
+      return SvgPicture.asset(
+        'assets/images/login/google_logo.svg',
+        width: 22,
+        height: 22,
+      );
+    }
+
+    if (providerId == 'apple.com') {
+      return SvgPicture.asset(
+        'assets/images/login/apple_logo.svg',
+        width: 22,
+        height: 22,
+      );
+    }
+
+    return const Icon(Icons.email);
+  }
+
+  Future<void> _showNicknameEditDialog() async {
+    final currentNickname = _nicknameController.text.trim();
+    var draftNickname = currentNickname;
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('닉네임 변경'),
+        content: StatefulBuilder(
+          builder: (context, setDialogState) => TextFormField(
+            initialValue: currentNickname,
+            autofocus: true,
+            maxLength: 20,
+            onChanged: (value) {
+              setDialogState(() {
+                draftNickname = value;
+              });
+            },
+            decoration: const InputDecoration(
+              hintText: '새 닉네임을 입력하세요',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, draftNickname.trim()),
+            child: const Text('변경'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == null) return;
+    await _changeNickname(result);
+  }
+
+  Future<void> _changeNickname(String newNickname) async {
+    final myId = widget.currentId;
     if (myId == null || myId.isEmpty) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('사용자 ID 정보가 없습니다.')),
+        const SnackBar(content: Text('사용자 정보가 없어 닉네임을 변경할 수 없습니다.')),
       );
       return;
     }
 
     if (newNickname.isEmpty) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('닉네임을 입력해주세요.')),
       );
       return;
     }
 
+    final currentNickname = _nicknameController.text.trim();
+    if (newNickname == currentNickname) return;
+
     try {
       await FirebaseFirestore.instance.runTransaction((transaction) async {
-        // 1. 닉네임 중복 체크
-        final nicknameRef =
-            FirebaseFirestore.instance.collection('nicknames').doc(newNickname);
-        final nicknameDoc = await transaction.get(nicknameRef);
+        final nicknames = FirebaseFirestore.instance.collection('nicknames');
+        final newNicknameRef = nicknames.doc(newNickname);
+        final newNicknameDoc = await transaction.get(newNicknameRef);
 
-        if (newNickname != _oldNickname) {
-          if (nicknameDoc.exists) {
-            throw Exception("이미 사용 중인 닉네임입니다.");
-          }
-
-          // 이전 닉네임 삭제
-          if (_oldNickname != null && _oldNickname!.isNotEmpty) {
-            final oldNicknameRef = FirebaseFirestore.instance
-                .collection('nicknames')
-                .doc(_oldNickname);
-            transaction.delete(oldNicknameRef);
-          }
-
-          // 새 닉네임 등록
-          transaction.set(nicknameRef, {'userId': myId});
-        } else {
-          // 닉네임은 그대로지만 'nicknames' 컬렉션에 없을 경우
-          if (!nicknameDoc.exists) {
-            transaction.set(nicknameRef, {'userId': myId});
+        if (newNicknameDoc.exists) {
+          final ownerId = newNicknameDoc.data()?['userId'] as String?;
+          if (ownerId != myId) {
+            throw Exception('nickname_taken');
           }
         }
 
-        // 2. User 정보 업데이트
         final userRef = FirebaseFirestore.instance.collection('users').doc(myId);
-        transaction.set(
-            userRef, {'nickname': newNickname}, SetOptions(merge: true));
+        transaction.set(userRef, {'nickname': newNickname}, SetOptions(merge: true));
+        transaction.set(newNicknameRef, {'userId': myId});
+
+        if (currentNickname.isNotEmpty && currentNickname != newNickname) {
+          final oldNicknameRef = nicknames.doc(currentNickname);
+          transaction.delete(oldNicknameRef);
+        }
       });
 
-      // 3. 로컬 저장
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('my_nickname', newNickname);
 
+      if (!mounted) return;
       setState(() {
-        _oldNickname = newNickname;
+        _nicknameController.text = newNickname;
       });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('닉네임이 저장되었습니다.')),
-        );
-        FocusScope.of(context).unfocus();
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('닉네임이 변경되었습니다.')),
+      );
     } catch (e) {
-      String errorMessage = "저장 실패";
-      if (e.toString().contains("이미 사용 중인 닉네임")) {
-        errorMessage = "이미 사용 중인 닉네임입니다.";
-      } else {
-        errorMessage = "저장 중 오류가 발생했습니다: $e";
-      }
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
-        );
-      }
+      if (!mounted) return;
+      final message = e.toString().contains('nickname_taken')
+          ? '이미 사용 중인 닉네임이라 변경할 수 없습니다.'
+          : '닉네임 변경 중 오류가 발생했습니다.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
     }
   }
 
@@ -185,13 +303,6 @@ class _MyPageScreenState extends State<MyPageScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('마이페이지'),
-        actions: [
-          IconButton(
-            onPressed: _logout,
-            icon: const Icon(Icons.logout),
-            tooltip: '로그아웃',
-          ),
-        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -209,56 +320,106 @@ class _MyPageScreenState extends State<MyPageScreen> {
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     children: [
-                      const Icon(Icons.person_pin, size: 60, color: Colors.blue),
-                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Container(
+                            width: 72,
+                            height: 72,
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.blue.shade100),
+                            ),
+                            alignment: Alignment.center,
+                            child: _resolvePetImageAssetPath() != null
+                                ? ClipOval(
+                                    child: Image.asset(
+                                      _resolvePetImageAssetPath()!,
+                                      width: 58,
+                                      height: 58,
+                                      fit: BoxFit.contain,
+                                      errorBuilder: (context, error, stackTrace) => const Icon(
+                                        Icons.pets,
+                                        size: 34,
+                                        color: Colors.blue,
+                                      ),
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.pets,
+                                    size: 34,
+                                    color: Colors.blue,
+                                  ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    _nicknameController.text.trim().isNotEmpty
+                                        ? _nicknameController.text.trim()
+                                        : '닉네임 미설정',
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: _showNicknameEditDialog,
+                                  icon: const Icon(Icons.edit, size: 20),
+                                  tooltip: '닉네임 변경',
+                                  color: Colors.blueGrey,
+                                  splashRadius: 20,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
                       // 로그인 정보 표시
                       ListTile(
-                        leading: const Icon(Icons.email),
-                        title: const Text('로그인 계정'),
-                        subtitle: Text(_getLoginInfo()),
+                        leading: _buildLoginProviderIcon(),
+                        title: Text(_getLoginInfo()),
                       ),
-                      const Divider(),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _nicknameController,
-                        decoration: const InputDecoration(
-                          labelText: '내 닉네임',
-                          helperText: '친구에게 이 이름으로 표시돼요.',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.face),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _logout,
+                        icon: const Icon(Icons.logout),
+                        label: const Text('로그아웃'),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: _saveInfo,
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 50),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: _deleteAccount,
+                        icon: const Icon(Icons.person_remove_alt_1),
+                        label: const Text('회원 탈퇴'),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          foregroundColor: Colors.red,
+                          side: const BorderSide(color: Colors.red),
                         ),
-                        child: const Text('닉네임 저장하기'),
                       ),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 20),
-              Center(
-                child: Column(
-                  children: [
-                    TextButton.icon(
-                      onPressed: _logout,
-                      icon: const Icon(Icons.logout, color: Colors.grey),
-                      label: const Text('계정 로그아웃', style: TextStyle(color: Colors.grey)),
-                    ),
-                    TextButton(
-                      onPressed: _deleteAccount,
-                      child: Text(
-                        '회원 탈퇴',
-                        style: TextStyle(color: Colors.red[300], fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         ),
@@ -286,7 +447,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
     try {
       final myId = widget.currentId;
-      final myNickname = _oldNickname; // 현재 저장된 닉네임 사용
+      final myNickname = _nicknameController.text.trim();
 
       if (myId != null) {
         final firestore = FirebaseFirestore.instance;
@@ -311,7 +472,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
         }
 
         // 3. 닉네임 삭제
-        if (myNickname != null && myNickname.isNotEmpty) {
+        if (myNickname.isNotEmpty) {
           final nicknameRef = firestore.collection('nicknames').doc(myNickname);
           batch.delete(nicknameRef);
         }
@@ -367,4 +528,3 @@ class _MyPageScreenState extends State<MyPageScreen> {
     }
   }
 }
-

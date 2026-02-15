@@ -35,12 +35,14 @@ class PetWidgetProvider : HomeWidgetProvider() {
                 val imageResId = when (cleanPetValue) {
                     "cat" -> R.drawable.cat
                     "dog_1" -> R.drawable.dog_1
+                    "dog_4" -> R.drawable.dog_4
                     "frog" -> R.drawable.frog
                     "hamster" -> R.drawable.hamster
                     "horse_1" -> R.drawable.horse_1
                     "parrot_1" -> R.drawable.parrot_1
                     "parrot_2" -> R.drawable.parrot_2
                     "rabbit" -> R.drawable.rabbit
+                    "rhino" -> R.drawable.rhino
                     else -> 0
                 }
 

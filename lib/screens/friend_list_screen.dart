@@ -58,6 +58,48 @@ class _FriendListScreenState extends State<FriendListScreen>
     super.dispose();
   }
 
+  String? _resolvePetImageAssetPath(String? petValue) {
+    if (petValue == null || petValue.isEmpty) return null;
+    if (petValue.contains('/')) {
+      return 'assets/images/$petValue.png';
+    }
+    return 'assets/images/pets/$petValue.png';
+  }
+
+  Widget _buildFriendAvatar(Map<String, dynamic>? userData) {
+    String? petValue;
+
+    if (userData != null) {
+      petValue = userData['partner_pet'] as String?;
+
+      if ((petValue == null || petValue.isEmpty) && userData['my_pets'] is List) {
+        final myPets = List<String>.from(userData['my_pets']);
+        if (myPets.isNotEmpty) {
+          petValue = myPets.first;
+        }
+      }
+    }
+
+    final petAssetPath = _resolvePetImageAssetPath(petValue);
+
+    return CircleAvatar(
+      radius: 24,
+      backgroundColor: Colors.blue[100],
+      child: petAssetPath != null
+          ? ClipOval(
+              child: Image.asset(
+                petAssetPath,
+                width: 54,
+                height: 54,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) =>
+                    const Icon(Icons.person, color: Colors.blue),
+              ),
+            )
+          : const Icon(Icons.person, color: Colors.blue),
+    );
+  }
+
   // --- 친구 요청 보내기 ---
   Future<bool> _sendFriendRequest() async {
     final targetNicknameInput = _searchController.text.trim();
@@ -325,18 +367,16 @@ class _FriendListScreenState extends State<FriendListScreen>
               future: FirebaseFirestore.instance.collection('users').doc(id).get(),
               builder: (context, userSnapshot) {
                 String displayName = storedNickname;
+                Map<String, dynamic>? userData;
                 if (userSnapshot.connectionState == ConnectionState.done && userSnapshot.hasData && userSnapshot.data!.exists) {
-                  final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+                  userData = userSnapshot.data!.data() as Map<String, dynamic>;
                   displayName = userData['nickname'] ?? storedNickname;
                 }
 
                 if (status == 'accepted') {
                   // --- 친구 목록 ---
                   return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Colors.blue[100],
-                      child: const Icon(Icons.person, color: Colors.blue),
-                    ),
+                    leading: _buildFriendAvatar(userData),
                     title: Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
                     trailing: IconButton(
                       icon: const Icon(Icons.person_remove, color: Colors.grey),

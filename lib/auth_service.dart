@@ -1,10 +1,13 @@
+import 'package:pet_widget_app/firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart'; // Import Apple Sign-In
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    clientId: DefaultFirebaseOptions.currentPlatform.iosClientId,
+  );
 
   // 현재 로그인된 유저 스트림
   Stream<User?> get userChanges => _auth.authStateChanges();

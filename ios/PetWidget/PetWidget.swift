@@ -40,33 +40,88 @@ struct SimpleEntry: TimelineEntry {
     let petMessage: String?
 }
 
+private let supportedPetImageNames: Set<String> = [
+    "cat", "dog_1", "dog_4", "frog", "hamster", "horse_1", "parrot_1", "parrot_2", "rabbit", "rhino"
+]
+
+private func normalizedPetImageName(from rawValue: String?) -> String? {
+    guard let rawValue, !rawValue.isEmpty else { return nil }
+
+    let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return nil }
+
+    let lastComponent = (trimmed as NSString).lastPathComponent
+    let nameWithoutExtension = (lastComponent as NSString).deletingPathExtension
+    let candidate = nameWithoutExtension.isEmpty ? lastComponent : nameWithoutExtension
+    let normalized = candidate.lowercased()
+
+    if supportedPetImageNames.contains(normalized) {
+        return normalized
+    }
+
+    // Handle legacy id-like values.
+    switch normalized {
+    case "cat_01":
+        return "cat"
+    case "dog_01":
+        return "dog_1"
+    case "dog_04":
+        return "dog_4"
+    case "frog_01":
+        return "frog"
+    case "hamster_01":
+        return "hamster"
+    case "horse_01":
+        return "horse_1"
+    case "parrot_01":
+        return "parrot_1"
+    case "parrot_02":
+        return "parrot_2"
+    case "rabbit_01":
+        return "rabbit"
+    case "rhino_01":
+        return "rhino"
+    default:
+        return nil
+    }
+}
+
 struct PetWidgetEntryView : View {
     var entry: Provider.Entry
+    @Environment(\.widgetFamily) private var family
 
     var body: some View {
+        let isSmall = family == .systemSmall
+        let bubbleSize = isSmall ? CGSize(width: 70, height: 50) : CGSize(width: 80, height: 60)
+        let imageSize: CGFloat = isSmall ? 72 : 100
+
         VStack {
             if let message = entry.petMessage, !message.isEmpty {
                 ZStack {
                     Image("pixel_message")
                         .resizable()
-                        .frame(width: 80, height: 60)
+                        .frame(width: bubbleSize.width, height: bubbleSize.height)
                     Text(message)
-                        .font(.system(size: 12))
+                        .font(.system(size: isSmall ? 10 : 12))
+                        .lineLimit(1)
                         .foregroundColor(.black)
-                        .padding(.bottom, 5)
+                        .padding(.bottom, isSmall ? 3 : 5)
                 }
-                .padding(.bottom, -10)
+                .padding(.bottom, isSmall ? -6 : -10)
             }
 
-            let petImageName = entry.petImage?.components(separatedBy: "/").last ?? ""
-            if !petImageName.isEmpty,
-               ["cat", "dog_1", "frog", "hamster", "horse_1", "parrot_1", "parrot_2", "rabbit"].contains(petImageName) {
+            if let petImageName = normalizedPetImageName(from: entry.petImage) {
                 Image(petImageName)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 100, height: 100)
+                    .frame(width: imageSize, height: imageSize)
+            } else if let fallbackText = entry.petImage, !fallbackText.isEmpty {
+                Text("PET")
+                    .font(.system(size: isSmall ? 18 : 22, weight: .bold))
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .widgetURL(URL(string: "petwidget://yard"))
     }
 }
 
@@ -84,7 +139,7 @@ struct PetWidget: Widget {
                                 Spacer()
                                 Rectangle()
                                     .fill(Color(red: 0.4, green: 0.8, blue: 0.4)) // Green grass
-                                    .frame(height: 45)
+                                    .frame(height: 40)
                             }
                         }
                     }
@@ -95,7 +150,7 @@ struct PetWidget: Widget {
                         Spacer()
                         Rectangle()
                             .fill(Color(red: 0.4, green: 0.8, blue: 0.4)) // Green grass
-                            .frame(height: 45)
+                            .frame(height: 40)
                     }
                     PetWidgetEntryView(entry: entry)
                 }
@@ -103,6 +158,7 @@ struct PetWidget: Widget {
         }
         .configurationDisplayName("My Widget")
         .description("This is an example widget.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
 
