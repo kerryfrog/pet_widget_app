@@ -232,6 +232,58 @@ class _SendPetScreenState extends State<SendPetScreen> {
   String? _myNickname;
   RewardedAd? _rewardedAd;
 
+  String _newDisposablePetId() {
+    return FirebaseFirestore.instance.collection('_').doc().id;
+  }
+
+  Map<String, dynamic> _createDisposableEntry(String value, {String? id}) {
+    return {
+      'id': id ?? _newDisposablePetId(),
+      'value': value,
+    };
+  }
+
+  List<Map<String, dynamic>> _normalizeDisposablePets(List<dynamic> rawPets, {required bool isSent}) {
+    return rawPets.asMap().entries.map((entry) {
+      final index = entry.key;
+      final raw = entry.value;
+
+      if (raw is Map<String, dynamic>) {
+        final value = raw['value']?.toString() ?? '';
+        final id = raw['id']?.toString();
+        return {
+          'value': value,
+          'isDisposable': true,
+          'isSent': isSent,
+          'disposableId': id,
+          'disposableRaw': raw,
+        };
+      }
+
+      if (raw is Map) {
+        final value = raw['value']?.toString() ?? raw.toString();
+        final id = raw['id']?.toString();
+        return {
+          'value': value,
+          'isDisposable': true,
+          'isSent': isSent,
+          'disposableId': id,
+          'disposableRaw': Map<String, dynamic>.from(raw),
+        };
+      }
+
+      final value = raw.toString();
+      return {
+        'value': value,
+        'isDisposable': true,
+        'isSent': isSent,
+        'disposableId': null,
+        'disposableRaw': value,
+        'legacyIndex': index,
+      };
+    }).toList();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -307,8 +359,9 @@ class _SendPetScreenState extends State<SendPetScreen> {
   void _grantDisposablePet() {
     if (widget.myId != null) {
       final randomPet = petList[Random().nextInt(petList.length)];
+      final disposableEntry = _createDisposableEntry(randomPet['value']!);
       FirebaseFirestore.instance.collection('users').doc(widget.myId).update({
-        'my_disposable_pets': FieldValue.arrayUnion([randomPet['value']])
+        'my_disposable_pets': FieldValue.arrayUnion([disposableEntry])
       });
     }
   }
@@ -357,6 +410,8 @@ class _SendPetScreenState extends State<SendPetScreen> {
     final displayName = petNicknames[pet['value']] ?? petInfo['name']!;
     final bool isDisposable = pet['isDisposable'];
     final bool isSent = pet['isSent'];
+    final String? disposableId = pet['disposableId'] as String?;
+    final dynamic disposableRaw = pet['disposableRaw'];
 
     showDialog(
       context: context,
@@ -411,7 +466,20 @@ class _SendPetScreenState extends State<SendPetScreen> {
                       final visitorsSnapshot = await doc.reference.collection('visitors').get();
                       for (var visitorDoc in visitorsSnapshot.docs) {
                         final visitorData = visitorDoc.data();
-                        if (visitorData['sender'] == widget.myId && visitorData['value'] == pet['value']) {
+                        if (visitorData['sender'] != widget.myId) {
+                          continue;
+                        }
+
+                        final visitorDisposableId = visitorData['sender_disposable_id']?.toString();
+                        if (disposableId != null && disposableId.isNotEmpty) {
+                          if (visitorDisposableId != disposableId) {
+                            continue;
+                          }
+                        } else if (visitorData['value'] != pet['value']) {
+                          continue;
+                        }
+
+                        if (visitorData['sender'] == widget.myId) {
                           return {'friendDoc': doc, 'petData': visitorData, 'visitorDocId': visitorDoc.id};
                         }
                       }
@@ -478,7 +546,7 @@ class _SendPetScreenState extends State<SendPetScreen> {
                         WidgetsBinding.instance.addPostFrameCallback((_) async {
                            if (widget.myId != null) {
                               await FirebaseFirestore.instance.collection('users').doc(widget.myId).update({
-                                'sent_disposable_pets': FieldValue.arrayRemove([pet['value']])
+                                'sent_disposable_pets': FieldValue.arrayRemove([disposableRaw ?? pet['value']])
                               });
                            }
                            Navigator.pop(context);
@@ -605,6 +673,8 @@ class _SendPetScreenState extends State<SendPetScreen> {
     final petValue = pet['value']!;
     final isDisposable = pet['isDisposable'] as bool;
     final isSent = pet['isSent'] as bool;
+    final disposableRaw = pet['disposableRaw'];
+    final disposableId = (pet['disposableId'] as String?) ?? _newDisposablePetId();
     final petName = petNicknames[petValue] ?? petList.firstWhere((p) => p['value'] == petValue)['name']!;
 
     final friendRef = FirebaseFirestore.instance.collection('users').doc(friendId);
@@ -619,13 +689,15 @@ class _SendPetScreenState extends State<SendPetScreen> {
           'message': message,
           'pet_nickname': petName,
           'return_time': Timestamp.fromDate(DateTime.now().add(const Duration(hours: 1))),
+          if (isDisposable) 'sender_disposable_id': disposableId,
         };
         transaction.set(friendRef.collection('visitors').doc(), newPetData);
 
         if (isDisposable && !isSent) {
+          final sentEntry = _createDisposableEntry(petValue, id: disposableId);
           transaction.update(myRef, {
-            'my_disposable_pets': FieldValue.arrayRemove([petValue]),
-            'sent_disposable_pets': FieldValue.arrayUnion([petValue]),
+            'my_disposable_pets': FieldValue.arrayRemove([disposableRaw ?? petValue]),
+            'sent_disposable_pets': FieldValue.arrayUnion([sentEntry]),
           });
         }
       });
@@ -661,11 +733,13 @@ class _SendPetScreenState extends State<SendPetScreen> {
                   final List<dynamic> myPets = data?['my_pets'] ?? [];
                   final List<dynamic> myDisposablePets = data?['my_disposable_pets'] ?? [];
                   final List<dynamic> sentDisposablePets = data?['sent_disposable_pets'] ?? [];
+                  final normalizedMyDisposablePets = _normalizeDisposablePets(myDisposablePets, isSent: false);
+                  final normalizedSentDisposablePets = _normalizeDisposablePets(sentDisposablePets, isSent: true);
                   
                   final List<Map<String, dynamic>> allMyPetObjects = [
                     ...myPets.map((p) => {'value': p, 'isDisposable': false, 'isSent': false}),
-                    ...myDisposablePets.map((p) => {'value': p, 'isDisposable': true, 'isSent': false}),
-                    ...sentDisposablePets.map((p) => {'value': p, 'isDisposable': true, 'isSent': true}),
+                    ...normalizedMyDisposablePets,
+                    ...normalizedSentDisposablePets,
                   ];
 
                   final petNicknames = (data?['pet_nicknames'] as Map<String, dynamic>?)?.map(

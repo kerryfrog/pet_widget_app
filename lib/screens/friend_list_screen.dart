@@ -89,9 +89,9 @@ class _FriendListScreenState extends State<FriendListScreen>
           ? ClipOval(
               child: Image.asset(
                 petAssetPath,
-                width: 54,
-                height: 54,
-                fit: BoxFit.cover,
+                width: 40,
+                height: 40,
+                fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) =>
                     const Icon(Icons.person, color: Colors.blue),
               ),

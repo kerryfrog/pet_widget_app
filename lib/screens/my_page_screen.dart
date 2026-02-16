@@ -335,8 +335,8 @@ class _MyPageScreenState extends State<MyPageScreen> {
                                 ? ClipOval(
                                     child: Image.asset(
                                       _resolvePetImageAssetPath()!,
-                                      width: 58,
-                                      height: 58,
+                                      width: 40,
+                                      height: 40,
                                       fit: BoxFit.contain,
                                       errorBuilder: (context, error, stackTrace) => const Icon(
                                         Icons.pets,
